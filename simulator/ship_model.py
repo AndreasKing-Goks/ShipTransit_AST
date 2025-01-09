@@ -1,11 +1,61 @@
+""" 
+This module provides classes to construct the ship model to simulate.
+It requires the construction of the ship machinery system to construct the ship model.
+"""
+
+
 import numpy as np
 import math
 import matplotlib.pyplot as plt
 from collections import defaultdict
-from typing import NamedTuple, List, Union
+from typing import NamedTuple, List
 
 from simulator.utils import EulerInt, ShipDraw
-from simulator.configs_ import ShipConfiguration, SimulationConfiguration, EnvironmentConfiguration, MachinerySystemConfiguration, ShipMachineryModel
+from simulator.ship_engine import ShipMachineryModel, MachinerySystemConfiguration
+
+###################################################################################################################
+####################################### CONFIGURATION FOR SHIP MODEL ##############################################
+###################################################################################################################
+
+class ShipConfiguration(NamedTuple):
+    dead_weight_tonnage: float
+    coefficient_of_deadweight_to_displacement: float
+    bunkers: float
+    ballast: float
+    length_of_ship: float
+    width_of_ship: float
+    added_mass_coefficient_in_surge: float
+    added_mass_coefficient_in_sway: float
+    added_mass_coefficient_in_yaw: float
+    mass_over_linear_friction_coefficient_in_surge: float
+    mass_over_linear_friction_coefficient_in_sway: float
+    mass_over_linear_friction_coefficient_in_yaw: float
+    nonlinear_friction_coefficient__in_surge: float
+    nonlinear_friction_coefficient__in_sway: float
+    nonlinear_friction_coefficient__in_yaw: float
+
+
+class EnvironmentConfiguration(NamedTuple):
+    current_velocity_component_from_north: float
+    current_velocity_component_from_east: float
+    wind_speed: float
+    wind_direction: float
+
+
+class SimulationConfiguration(NamedTuple):
+    initial_north_position_m: float
+    initial_east_position_m: float
+    initial_yaw_angle_rad: float
+    initial_forward_speed_m_per_s: float
+    initial_sideways_speed_m_per_s: float
+    initial_yaw_rate_rad_per_s: float
+    integration_step: float
+    simulation_time: float
+    
+    
+###################################################################################################################
+###################################################################################################################
+
 
 class BaseShipModel:
     def __init__(

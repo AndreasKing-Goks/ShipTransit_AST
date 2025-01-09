@@ -1,6 +1,26 @@
+""" 
+This module provides classes that can be used for Line of Sight Guidance.
+"""
+
+
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+from typing import List, NamedTuple, Union
+
+###################################################################################################################
+##################################### CONFIGURATION FOR LOS GUIDANCE ##############################################
+###################################################################################################################
+
+class LosParameters(NamedTuple):
+    radius_of_acceptance: float
+    lookahead_distance: float
+    integral_gain: float
+    integrator_windup_limit: float
+
+
+###################################################################################################################
+###################################################################################################################
 
 
 class NavigationSystem:

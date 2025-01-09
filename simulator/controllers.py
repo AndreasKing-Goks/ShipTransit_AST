@@ -1,9 +1,47 @@
+""" 
+This module provides classes of controllers used to control the ship inside the simulator.
+"""
+
+
 import numpy as np
 import math
+from typing import List, NamedTuple, Union
 
-
-from simulator.configs_ import ThrottleControllerGains, HeadingControllerGains, LosParameters
 from simulator.LOS_guidance import NavigationSystem 
+
+###################################################################################################################
+#################################### CONFIGURATION FOR PID CONTROLLER #############################################
+###################################################################################################################
+
+
+class ThrottleControllerGains(NamedTuple):
+    kp_ship_speed: float
+    ki_ship_speed: float
+    kp_shaft_speed: float
+    ki_shaft_speed: float
+    
+    
+class HeadingControllerGains(NamedTuple):
+    kp: float
+    kd: float
+    ki: float
+    
+    
+class HeadingControllerGains(NamedTuple):
+    kp: float
+    kd: float
+    ki: float
+
+class LosParameters(NamedTuple):
+    radius_of_acceptance: float
+    lookahead_distance: float
+    integral_gain: float
+    integrator_windup_limit: float
+    
+
+###################################################################################################################
+###################################################################################################################
+
 
 class PiController:
     def __init__(self, kp: float, ki: float, time_step: float, initial_integral_error=0):

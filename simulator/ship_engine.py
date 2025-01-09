@@ -1,8 +1,24 @@
+""" 
+This module provides classes to construct the ship machinery sistem to simulate.
+Ship machinery includes the type of engine and diesel generators used.
+"""
+
+
 import numpy as np
-from typing import List, Union
+from typing import List, NamedTuple, Union
 
 from simulator.utils import EulerInt
-from simulator.configs_ import MachineryModeParams, MachinerySystemConfiguration, SimplifiedPropulsionMachinerySystemConfiguration, LoadOnPowerSources, FuelConsumptionCoefficients, RudderConfiguration
+
+###################################################################################################################
+###################################### CONFIGURATION FOR MACHINERY MODEL ##########################################
+###################################################################################################################
+
+
+class MachineryModeParams(NamedTuple):
+    main_engine_capacity: float
+    electrical_capacity: float
+    shaft_generator_state: str
+
 
 class MachineryMode:
     def __init__(self, params: MachineryModeParams):
@@ -62,7 +78,102 @@ class MachineryMode:
 class MachineryModes:
     def __init__(self, list_of_modes: List[MachineryMode]):
         self.list_of_modes = list_of_modes
-        
+
+
+class MachineryModes:
+    def __init__(self, list_of_modes: List[MachineryMode]):
+        self.list_of_modes = list_of_modes
+
+
+class SpecificFuelConsumptionWartila6L26:
+    def __init__(self):
+        self.a = 128.9
+        self.b = -168.9
+        self.c = 246.8
+
+    def fuel_consumption_coefficients(self):
+        return FuelConsumptionCoefficients(
+            a=self.a,
+            b=self.b,
+            c=self.c
+        )
+
+class SpecificFuelConsumptionBaudouin6M26Dot3:
+    def __init__(self):
+        self.a = 108.7
+        self.b = -289.9
+        self.c = 324.9
+
+    def fuel_consumption_coefficients(self):
+        return FuelConsumptionCoefficients(
+            a=self.a,
+            b=self.b,
+            c=self.c
+        )
+
+
+class FuelConsumptionCoefficients(NamedTuple):
+    a: float
+    b: float
+    c: float
+
+
+class MachinerySystemConfiguration(NamedTuple):
+    hotel_load: float
+    machinery_modes: MachineryModes
+    machinery_operating_mode: int
+    rated_speed_main_engine_rpm: float
+    linear_friction_main_engine: float
+    linear_friction_hybrid_shaft_generator: float
+    gear_ratio_between_main_engine_and_propeller: float
+    gear_ratio_between_hybrid_shaft_generator_and_propeller: float
+    propeller_inertia: float
+    propeller_speed_to_torque_coefficient: float
+    propeller_diameter: float
+    propeller_speed_to_thrust_force_coefficient: float
+    rudder_angle_to_sway_force_coefficient: float
+    rudder_angle_to_yaw_force_coefficient: float
+    max_rudder_angle_degrees: float
+    specific_fuel_consumption_coefficients_me: FuelConsumptionCoefficients
+    specific_fuel_consumption_coefficients_dg: FuelConsumptionCoefficients
+
+
+class WithoutMachineryModelConfiguration(NamedTuple):
+    thrust_force_dynamic_time_constant: float
+    rudder_angle_to_sway_force_coefficient: float
+    rudder_angle_to_yaw_force_coefficient: float
+    max_rudder_angle_degrees: float
+
+
+class SimplifiedPropulsionMachinerySystemConfiguration(NamedTuple):
+    hotel_load: float
+    machinery_modes: MachineryModes
+    machinery_operating_mode: int
+    specific_fuel_consumption_coefficients_me: FuelConsumptionCoefficients
+    specific_fuel_consumption_coefficients_dg: FuelConsumptionCoefficients
+    thrust_force_dynamic_time_constant: float
+    rudder_angle_to_sway_force_coefficient: float
+    rudder_angle_to_yaw_force_coefficient: float
+    max_rudder_angle_degrees: float
+    
+    
+class RudderConfiguration(NamedTuple):
+    rudder_angle_to_sway_force_coefficient: float
+    rudder_angle_to_yaw_force_coefficient: float
+    max_rudder_angle_degrees: float
+    
+
+class LoadOnPowerSources(NamedTuple):
+    load_on_main_engine: float
+    load_on_electrical: float
+    load_percentage_on_main_engine: float
+    load_percentage_on_electrical: float
+
+
+###################################################################################################################
+###################################################################################################################
+
+
 class BaseMachineryModel:
     def __init__(self,
                  fuel_coeffs_for_main_engine: Union[FuelConsumptionCoefficients, None],
