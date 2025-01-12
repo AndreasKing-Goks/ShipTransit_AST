@@ -3,7 +3,7 @@ This module provides classes of controllers used to control the ship inside the 
 """
 
 
-      import numpy as np
+import numpy as np
 from typing import List, NamedTuple, Union
 
 from simulator.LOS_guidance import NavigationSystem 
