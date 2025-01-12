@@ -1,0 +1,3 @@
+[submodule "nav-env"]
+	path = nav-env
+	url = https://github.com/stiefen1/nav-env.git
