@@ -3,16 +3,22 @@ This module outlines the definition of posible failure modes during the simulati
 using the Ship Transit Simulator
 """
 
-def isShaftBreak(shaft_rpm):
+def isMechanicalFailure(measured_shaft_rpm):
     ## Check this website:
     ## https://spicerparts.com/calculators/critical-speed-rpm-calculator
     shaft_rpm_max = 2000 # rpm
-    return shaft_rpm >= shaft_rpm_max
+    return measured_shaft_rpm > shaft_rpm_max
 
-def isLOSNavigationConvergenceFailure(x, x_trajectory):
-    ## - Longer time convergence to the line segment
-    return 1
+def isNavigationFailure(e_ct):
+    ## Ship deviates off the course beyond tolerance
+    e_tolerance = 20
+    return e_ct > e_tolerance
 
-def isLOSNavigationOscillationFailure(x, x_trajectory):
-    ## - Oscillation or even divergence from the line segment
-    return 1
+def isBeachingFailure(pos): # Pos = [n_pos, e_pos]
+    ## Ship stuck in the terminal position state
+    terminal_position = []
+    return False
+
+def isBlackOutFailure(power_load, available_power):
+    ## Diesel engine overloaded
+    return power_load > available_power

@@ -116,17 +116,7 @@ los_guidance_parameters = LosParameters(
 )
 
 # Place route
-# route_name = "route.txt"
 route_name = r'D:\OneDrive - NTNU\PhD\PhD_Projects\ShipTransit_OptiStress\ShipTransit_Simu\route.txt'
-# route_name = np.loadtxt('D:\OneDrive - NTNU\PhD\PhD_Projects\ShipTransit_OptiStress\ShipTransit_Simu\route.txt')
-
-# import os
-# file_path = route_name
-# print(f"Using route file path: {file_path}")
-# if os.path.exists(file_path):
-#     print("Route file exists!")
-# else:
-#     print("Route file not found!")
 
 auto_pilot = HeadingByRouteController(
     route_name,

@@ -3,8 +3,7 @@ This module provides classes of controllers used to control the ship inside the 
 """
 
 
-import numpy as np
-import math
+      import numpy as np
 from typing import List, NamedTuple, Union
 
 from simulator.LOS_guidance import NavigationSystem 
@@ -195,6 +194,9 @@ class HeadingByRouteController:
         )
         self.next_wpt = 1
         self.prev_wpt = 0
+        
+        self.heading_ref = 0
+        self.heading_mea = 0
 
     def rudder_angle_from_route(self, north_position, east_position, heading):
         ''' This method finds a suitable rudder angle for the ship to follow
@@ -202,5 +204,13 @@ class HeadingByRouteController:
             "NavigationSystem"-class.
         '''
         self.next_wpt, self.prev_wpt = self.navigate.next_wpt(self.next_wpt, north_position, east_position)
-        psi_d = self.navigate.los_guidance(self.next_wpt, north_position, east_position)
-        return self.heading_controller.rudder_angle_from_heading_setpoint(heading_ref=psi_d, measured_heading=heading)
+        self.heading_ref = self.navigate.los_guidance(self.next_wpt, north_position, east_position)
+        self.heading_mea = heading
+        return self.heading_controller.rudder_angle_from_heading_setpoint(heading_ref=self.heading_ref, measured_heading=heading)
+    
+    ## ADDITIONAL ##
+    def get_heading_error(self):
+        return np.abs(self.heading_mea - self.heading_ref)
+    
+    def get_error_cross_track(self):
+        return self.navigate.e_ct

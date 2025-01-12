@@ -6,7 +6,7 @@ This module provides classes that can be used for Line of Sight Guidance.
 import numpy as np
 import math
 import matplotlib.pyplot as plt
-from typing import List, NamedTuple, Union
+from typing import List, NamedTuple
 
 ###################################################################################################################
 ##################################### CONFIGURATION FOR LOS GUIDANCE ##############################################
@@ -46,6 +46,7 @@ class NavigationSystem:
         self.ra = radius_of_acceptance
         self.r = lookahead_distance
         self.ki = integral_gain
+        self.e_ct = 0
         self.e_ct_int = 0
         self.integrator_limit = integrator_windup_limit
 
@@ -94,7 +95,8 @@ class NavigationSystem:
         dx = self.north[k] - self.north[k - 1]
         dy = self.east[k] - self.east[k - 1]
         alpha_k = math.atan2(dy, dx)
-        e_ct = -(x - self.north[k - 1]) * math.sin(alpha_k) + (y - self.east[k - 1]) * math.cos(alpha_k) # Cross-term error
+        e_ct = -(x - self.north[k - 1]) * math.sin(alpha_k) + (y - self.east[k - 1]) * math.cos(alpha_k) # Cross-track error
+        self.e_ct = e_ct
         if e_ct ** 2 >= self.r ** 2:
             e_ct = 0.99 * self.r
         delta = math.sqrt(self.r ** 2 - e_ct ** 2)
@@ -102,7 +104,7 @@ class NavigationSystem:
             self.e_ct_int += e_ct / delta
         chi_r = math.atan(-e_ct / delta - self.e_ct_int*self.ki)
         return alpha_k + chi_r
-
+    
 
 class StaticObstacle:
     ''' This class is used to define a static obstacle. It can only make
