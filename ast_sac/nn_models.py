@@ -101,7 +101,14 @@ class GaussianPolicy(nn.Module):
             
         # Enforcing Action Bound
         log_prob -= torch.log(self.action_scale * (1 - y_t.pow(2)) + epsilon)
-        log_prob = log_prob.sum(1, keepdim=True)
+        
+        # Sum log probabilities across action dimensions
+        if log_prob.dim() == 1:  # Single state input
+            log_prob = log_prob.sum(0, keepdim=True)  # Sum over action dimensions
+        elif log_prob.dim() == 2:  # Batch input
+            log_prob = log_prob.sum(1, keepdim=True)  # Sum over action dimensions for each state
+        
+        # Compute the mean
         mean = torch.tanh(mean) * self.action_scale + self.action_bias
             
         return action, log_prob, mean

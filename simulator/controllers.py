@@ -214,3 +214,70 @@ class HeadingByRouteController:
     
     def get_error_cross_track(self):
         return self.navigate.e_ct
+    
+
+class HeadingBySampledRouteController:
+    def __init__(
+            self, route_name,
+            heading_controller_gains: HeadingControllerGains,
+            los_parameters: LosParameters,
+            time_step: float,
+            max_rudder_angle: float,
+            num_of_samplings: int
+    ):
+        self.heading_controller = HeadingByReferenceController(
+            gains=heading_controller_gains, time_step=time_step, max_rudder_angle=max_rudder_angle
+        )
+        self.navigate = NavigationSystem(
+            route=route_name,
+            radius_of_acceptance=los_parameters.radius_of_acceptance,
+            lookahead_distance=los_parameters.lookahead_distance,
+            integral_gain=los_parameters.integral_gain,
+            integrator_windup_limit=los_parameters.integrator_windup_limit
+        )
+        self.next_wpt = 1
+        self.prev_wpt = 0
+        
+        self.heading_ref = 0
+        self.heading_mea = 0
+        
+        self.num_of_samplings = num_of_samplings
+        self.sampling_counters = 0
+        self.distance_points_north = self.navigate.north[1] - self.navigate.north[0]
+        self.distance_points_east = self.navigate.east[1] - self.navigate.east[0]
+        
+    def update_route(self, route_shifts):
+        # Check if sampling done more than the allowed sampling frequency
+        if self.sampling_counters > self.num_of_samplings:
+            self.sampling_counters = 0
+            
+        # Count update
+        self.sampling_counters += 1
+    
+        # Get the route shifts and update the new route
+        route_shift_n, route_shift_e = route_shifts
+        
+        line_segments_count = self.sampling_counters / self.num_of_samplings
+        sampled_route_north = line_segments_count * self.distance_points_north + route_shift_n
+        sampled_route_east = line_segments_count * self.distance_points_east + route_shift_e
+        
+        self.navigate.north.insert(-1, sampled_route_north)
+        self.navigate.east.insert(-1, sampled_route_east)
+        
+
+    def rudder_angle_from_sampled_route(self, north_position, east_position, heading):
+        ''' This method finds a suitable rudder angle for the ship to follow
+            a predefined route specified in the "navigate"-instantiation of the
+            "NavigationSystem"-class.
+        '''
+        self.next_wpt, self.prev_wpt = self.navigate.next_wpt(self.next_wpt, north_position, east_position)
+        self.heading_ref = self.navigate.los_guidance(self.next_wpt, north_position, east_position)
+        self.heading_mea = heading
+        return self.heading_controller.rudder_angle_from_heading_setpoint(heading_ref=self.heading_ref, measured_heading=heading)
+    
+    ## ADDITIONAL ##
+    def get_heading_error(self):
+        return np.abs(self.heading_mea - self.heading_ref)
+    
+    def get_error_cross_track(self):
+        return self.navigate.e_ct

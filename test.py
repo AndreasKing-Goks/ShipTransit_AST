@@ -135,6 +135,8 @@ while ship_model.int.time < ship_model.int.sim_time:
     east_position = ship_model.east
     heading = ship_model.yaw_angle
     speed = ship_model.forward_speed
+    
+    # Action sampling
 
     # Find appropriate rudder angle and engine throttle
     rudder_angle = auto_pilot.rudder_angle_from_route(
@@ -201,3 +203,6 @@ int_fig, int_ax = plt.subplots()
 int_ax.plot(times, integrator_term)
 
 plt.show()
+
+print(auto_pilot.navigate.north)
+print(auto_pilot.navigate.east)

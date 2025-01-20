@@ -16,6 +16,8 @@ class SAC(object):
         self.policy_type = args.policy
         self.target_update_interval = args.target_update_interval
         self.automatic_entropy_tuning = args.automatic_entropy_tuning
+        
+        self.action_space = action_space
 
         self.device = torch.device("cuda" if args.cuda else "cpu")
 
@@ -26,7 +28,6 @@ class SAC(object):
         hard_update(self.critic_target, self.critic)
 
         if self.policy_type == "Gaussian":
-            # Target Entropy = −dim(A) (e.g. , -6 for HalfCheetah-v2) as given in the paper
             if self.automatic_entropy_tuning is True:
                 self.target_entropy = -torch.prod(torch.Tensor(action_space.shape).to(self.device)).item()
                 self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
@@ -40,6 +41,10 @@ class SAC(object):
             self.automatic_entropy_tuning = False
             self.policy = DeterministicPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
+        
+        # Initialize holding variables for route points
+        self.route_point_north_hold = 0
+        self.route_point_east_hold = 0
 
     def select_action(self, state, evaluate=False):
         state = torch.FloatTensor(state).to(self.device).unsqueeze(0)
