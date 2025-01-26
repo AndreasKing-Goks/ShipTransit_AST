@@ -129,7 +129,14 @@ auto_pilot = HeadingByRouteController(
 integrator_term = []
 times = []
 
+i = 0
+
 while ship_model.int.time < ship_model.int.sim_time:
+    # print(ship_model.simulation_results['north position [m]'])
+    # i += 1
+    
+
+    
     # Measure position and speed
     north_position = ship_model.north
     east_position = ship_model.east
@@ -150,11 +157,18 @@ while ship_model.int.time < ship_model.int.sim_time:
         measured_shaft_speed=speed
     )
 
+    
+    
     ## THIS SHOULD FALL UNDER STEP FUNCTION
     # Update and integrate differential equations for current time step
     ship_model.store_simulation_data(throttle)
+    
+    # print(ship_model.simulation_results['north position [m]'])
+    
     ship_model.update_differentials(engine_throttle=throttle, rudder_angle=rudder_angle)
     ship_model.integrate_differentials()
+    
+    
 
     integrator_term.append(auto_pilot.navigate.e_ct_int)
     times.append(ship_model.int.time)
@@ -178,6 +192,9 @@ while ship_model.int.time < ship_model.int.sim_time:
     
     # Progress time variable to the next time step
     ship_model.int.next_time()
+    
+    # if i >0:
+    #     break
         
     ## THIS SHOULD FALL UNDER STEP FUNCTION
 
@@ -204,5 +221,5 @@ int_ax.plot(times, integrator_term)
 
 plt.show()
 
-print(auto_pilot.navigate.north)
-print(auto_pilot.navigate.east)
+# print(auto_pilot.navigate.north)
+# print(auto_pilot.navigate.east)

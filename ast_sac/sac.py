@@ -1,14 +1,22 @@
 import os
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.optim import Adam
+from RL_env import ShipRLEnv
 from ast_sac.utils import soft_update, hard_update
 from ast_sac.nn_models import GaussianPolicy, QNetwork, DeterministicPolicy
 
 
 class SAC(object):
-    def __init__(self, num_inputs, action_space, args):
+    def __init__(self, 
+                 RL_env: ShipRLEnv, 
+                 args):
 
+        self.env = RL_env
+        self.num_inputs = self.env.observation_space.shape[0]
+        self.action_space = self.env.action_space
+        
         self.gamma = args.gamma
         self.tau = args.tau
         self.alpha = args.alpha
@@ -16,43 +24,128 @@ class SAC(object):
         self.policy_type = args.policy
         self.target_update_interval = args.target_update_interval
         self.automatic_entropy_tuning = args.automatic_entropy_tuning
-        
-        self.action_space = action_space
 
         self.device = torch.device("cuda" if args.cuda else "cpu")
 
-        self.critic = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
+        self.critic = QNetwork(self.num_inputs, self.action_space.shape[0], args.hidden_size).to(device=self.device)
         self.critic_optim = Adam(self.critic.parameters(), lr=args.lr)
 
-        self.critic_target = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(self.device)
+        self.critic_target = QNetwork(self.num_inputs, self.action_space.shape[0], args.hidden_size).to(self.device)
         hard_update(self.critic_target, self.critic)
 
         if self.policy_type == "Gaussian":
             if self.automatic_entropy_tuning is True:
-                self.target_entropy = -torch.prod(torch.Tensor(action_space.shape).to(self.device)).item()
+                self.target_entropy = -torch.prod(torch.Tensor(self.action_space.shape).to(self.device)).item()
                 self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
                 self.alpha_optim = Adam([self.log_alpha], lr=args.lr)
 
-            self.policy = GaussianPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
+            self.policy = GaussianPolicy(self.num_inputs, self.action_space.shape[0], args.hidden_size, self.action_space).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
         else:
             self.alpha = 0
             self.automatic_entropy_tuning = False
-            self.policy = DeterministicPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
+            self.policy = DeterministicPolicy(self.num_inputs, self.action_space.shape[0], args.hidden_size, self.action_space).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
         
-        # Initialize holding variables for route points
-        self.route_point_north_hold = 0
-        self.route_point_east_hold = 0
-
-    def select_action(self, state, evaluate=False):
+        # Initialize variables for route point sampling
+        self.sampling_frequency = args.sampling_frequency
+        self.theta = args.theta
+        
+        self.AB_north = RL_env.auto_pilot.navigate.north[-1] - RL_env.auto_pilot.navigate.north[0]
+        self.AB_east = RL_env.auto_pilot.navigate.east[-1] - RL_env.auto_pilot.navigate.east[0]
+        self.segment_AB_north = self.AB_north / (self.sampling_frequency + 1)
+        self.segment_AB_east = self.AB_east / (self.sampling_frequency + 1)
+        self.segment_AB = np.sqrt(self.segment_AB_north**2 + self.segment_AB_east**2)
+        
+        self.distance_travelled = 0
+        self.sampling_count = 1
+        
+        self.last_route_point_north = 0 
+        self.last_route_point_east = 0
+        self.last_desired_forward_speed = self.env.desired_forward_speed
+        
+        self.stop_sampling = False
+        
+    
+    def select_action(self, state, done: bool, init: bool, mode: int):
+        
+        # Compute action based on mode
+        # Transform the state array to tensor
         state = torch.FloatTensor(state).to(self.device).unsqueeze(0)
-        if evaluate is False:
-            action, _, _ = self.policy.sample(state)
-        else:
-            _, _, action = self.policy.sample(state)
-        return action.detach().cpu().numpy()[0]
+
+        # print(self.env.ship_model.simulation_results['north position [m]'])
+
+        if not self.stop_sampling:
+
+            # Compute traveled distance
+            if not init and len(self.env.ship_model.simulation_results['north position [m]']) > 1:
+                dist_trav_north = self.env.ship_model.simulation_results['north position [m]'][-1] - self.env.ship_model.simulation_results['north position [m]'][-2]
+                dist_trav_east = self.env.ship_model.simulation_results['east position [m]'][-1] - self.env.ship_model.simulation_results['east position [m]'][-2]
+                self.distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
+
+            # Handle sampling condition
+            if init or self.distance_travelled > self.segment_AB * self.theta:
+                # if init:
+                #     print(f"Initial route sampling")
+                # else:
+                #     print(f"Distance travelled: {self.distance_travelled:.2f}, Threshold: {self.segment_AB * self.theta:.2f}")
+            
+                # Sample action based on mode
+                if mode == 0:
+                    act = self.env.action_space.sample()
+                elif mode == 1:
+                    act, _, _ = self.policy.sample(state)
+                    act = act.detach().cpu().numpy()[0]
+                elif mode == 2:
+                    _, _, act = self.policy.sample(state)
+                    act = act.detach().cpu().numpy()[0]
+
+                # Unpack action
+                north_deviation, east_deviation, desired_forward_speed = act
+
+                # Compute new route point
+                if self.sampling_count < self.sampling_frequency:
+                    route_point_north = north_deviation + self.segment_AB_north * self.sampling_count
+                    route_point_east = east_deviation + self.segment_AB_east * self.sampling_count
+                    action = np.array([route_point_north, route_point_east, desired_forward_speed])
+
+                    # Store the sampled action until the next sampling
+                    self.last_route_point_north = route_point_north 
+                    self.last_route_point_east = route_point_east
+                    self.last_desired_forward_speed = desired_forward_speed
+                
+                    # Reset distance and increment sampling count
+                    self.distance_travelled = 0
+                    self.sampling_count += 1
+                
+                    sample_flag = True
+
+                    np.set_printoptions(precision=2, suppress=True)
+                    # print(f"Sampled action with policy: {action:}, Distance reset.")
+                
+                    return action, sample_flag
+
+            # print(self.sampling_count)
+            
+            # Reset if sampling limit or terminal state is reached
+            if self.sampling_count == self.sampling_frequency:
+                self.distance_travelled = 0
+                self.sampling_count = 0  # Reset to start a new cycle
+                self.stop_sampling = True
+        
+            if done:
+                self.distance_travelled = 0
+                self.sampling_count = 0  # Reset to start a new cycle
+                self.stop_sampling = False
+            
+
+        # Return last known action if no sampling occurred
+        action = np.array([self.last_route_point_north, self.last_route_point_east, self.last_desired_forward_speed])
+        sample_flag = False
+        
+        return action, sample_flag
+      
 
     def update_parameters(self, memory, batch_size, updates):
         # Sample a batch from memory

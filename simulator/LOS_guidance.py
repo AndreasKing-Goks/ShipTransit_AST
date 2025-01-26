@@ -40,9 +40,10 @@ class NavigationSystem:
             radius_of_acceptance=600,
             lookahead_distance=450,
             integral_gain=0.01,
-            integrator_windup_limit=0.5
+            integrator_windup_limit=0.5,
     ):
-        self.load_waypoints(route)
+        self.route = route
+        self.load_waypoints(self.route)
         self.ra = radius_of_acceptance
         self.r = lookahead_distance
         self.ki = integral_gain
@@ -50,18 +51,19 @@ class NavigationSystem:
         self.e_ct_int = 0
         self.integrator_limit = integrator_windup_limit
 
-    def load_waypoints(self, route):
+    def load_waypoints(self, route, print_init_msg=False):
         ''' Reads the file containing the route and stores it as an
             array of north positions and an array of east positions
         '''
         # self.data = np.loadtxt(route)
         # self.data = route
-        
-        print(f"Route received in load_waypoints: {route}")
+        if print_init_msg:
+            print(f"Route received in load_waypoints: {route}")
         
         # Load the file if the input is a string (file path)
         if isinstance(route, str):
-            print(f"Loading route file from: {route}")  # Debugging
+            if print_init_msg:
+                print(f"Loading route file from: {route}")  # Debugging
             self.data = np.loadtxt(route)
         else:
             self.data = route  # Assume it's already an array

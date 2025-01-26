@@ -34,24 +34,28 @@ def failure_terminal_state(measured_shaft_rpm, los_ct_error, pos, engine_load, a
         reward_mf = 10
         reward_terminal += reward_mf
         done = True
+        # print('MF')
             
     # Navigation Failure
     if isNavigationFailure(los_ct_error):
         reward_nf = 10
         reward_terminal += reward_nf
         done= True
+        # print('NF')
             
     # Beaching Failure
     if isBeachingFailure(pos):
         reward_bf = 10
         reward_terminal += reward_bf
         done = True
+        # print('BF')
             
     # Black Out Failure
     if isBlackOutFailure(engine_load, av_engine_load):
         reward_bof = 10
         reward_terminal += reward_bof
         done = True
+        # print('BOF')
         
     return reward_terminal, done
         

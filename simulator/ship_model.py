@@ -658,7 +658,7 @@ class ShipModelAST(BaseShipModel):
         self.simulation_results['north position [m]'].append(self.north)
         self.simulation_results['east position [m]'].append(self.east)
         self.simulation_results['yaw angle [deg]'].append(self.yaw_angle * 180 / np.pi)
-        self.simulation_results['forward speed[m/s]'].append(self.forward_speed)
+        self.simulation_results['forward speed [m/s]'].append(self.forward_speed)
         self.simulation_results['sideways speed [m/s]'].append(self.sideways_speed)
         self.simulation_results['yaw rate [deg/sec]'].append(self.yaw_rate * 180 / np.pi)
         self.simulation_results['propeller shaft speed [rpm]'].append(self.ship_machinery_model.omega * 30 / np.pi)

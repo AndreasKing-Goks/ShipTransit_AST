@@ -5,6 +5,8 @@ This modules provide classes for the reinforcement learning environment based on
 from gymnasium import Env
 from gymnasium.spaces import Box
 from gymnasium.utils import seeding
+
+from collections import defaultdict
 import numpy as np
 import torch
 
@@ -43,48 +45,59 @@ class ShipRLEnv(Env):
         
         # Define observation space [n_pos, e_pos, headings, forward speed, shaft_speed, los_e_ct, power_load] (7 states)
         self.observation_space = Box(
-            low = np.array([-10000, -10000, -np.pi, -25, -3000, 0, 0], dtype=np.float32),
-            high = np.array([10000, 10000, np.pi, 25, 3000, 100, 2000], dtype=np.float32),
+            low = np.array([-2000, -2000, -np.pi, -25, -3000, 0, 0], dtype=np.float32),
+            high = np.array([2000, 2000, np.pi, 25, 3000, 100, 2000], dtype=np.float32),
         )
         
         # Define action space [route_point_n, route_point_e, desired_speed]
         self.action_space = Box(
-            low = np.array([-10000, -10000, -10], dtype=np.float32),
-            high = np.array([10000, 10000, 10], dtype=np.float32),
+            low = np.array([-100, -100, -5], dtype=np.float32),
+            high = np.array([100, 100, 10], dtype=np.float32),
         )
         
         # Define initial state
         self.state = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32)
         
-        # Define the maximmum environment steps
-        self._max_episode_steps = 10000
+        # Desired speed
+        self.desired_forward_speed = 10.0
+        
+        # # Initialize navigation system
+        # self.nav_sys = NavigationSystem(
+        #     ship_model = self.ship_model,
+        #     route = self.auto_pilot.route,
+        #     times = self.times
+        # )
+        
+        # Initialize random seed
+        self.seed()
     
     def reset(self):
+        # Reset the simulation results dictionary
+        self.ship_model.simulation_results = defaultdict(list)
+        
+        # Reset the route countainer
+        self.auto_pilot.navigate.load_waypoints(self.auto_pilot.navigate.route)
+        
         # Reset the changing states into its initial state
         self.state = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32)
         return self.state
     
-    def step(self, step_action):       
+    def step(self, action, sample_flag):       
         # Measure ship position and speed
         north_position = self.ship_model.north
         east_position = self.ship_model.east
         heading = self.ship_model.yaw_angle
         forward_speed = self.ship_model.forward_speed
         
-        # Unpack action NOT ALL TIMESTEP, NEED TO BE OCASSIONAL
-        # route_shift_n, route_shift_e, desired_forward_speed, route_sample = step_action
-        route_shift_n, route_shift_e, desired_forward_speed = step_action
+        if sample_flag:
+            route_shift_n, route_shift_e, desired_forward_speed = action
         
-        # # If route sampling is enabled
-        # if route_sample:
-        #     route_shifts = route_shift_n, route_shift_e
+            # Update route_point based on the action
+            route_shifts = route_shift_n, route_shift_e
+            self.auto_pilot.update_route(route_shifts)
             
-        #     # Update route_point based on the action
-        #     self.auto_pilot.update_route(route_shifts)
-        
-        # Update route_point based on the action
-        route_shifts = route_shift_n, route_shift_e
-        self.auto_pilot.update_route(route_shifts)
+            # Update desired_forward_speed based on the action
+            self.desired_forward_speed = desired_forward_speed
         
         # Find appropriate rudder angle and engine throttle
         rudder_angle = self.auto_pilot.rudder_angle_from_sampled_route(
@@ -94,7 +107,7 @@ class ShipRLEnv(Env):
         )
         
         throttle = self.throttle_controller.throttle(
-            speed_set_point = desired_forward_speed,
+            speed_set_point = self.desired_forward_speed,
             measured_speed = forward_speed,
             measured_shaft_speed = forward_speed
         )
