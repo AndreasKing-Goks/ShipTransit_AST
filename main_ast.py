@@ -1,6 +1,7 @@
 from simulator.ship_model import  ShipConfiguration, EnvironmentConfiguration, SimulationConfiguration, ShipModelAST
 from simulator.ship_engine import MachinerySystemConfiguration, MachineryMode, MachineryModeParams, MachineryModes, SpecificFuelConsumptionBaudouin6M26Dot3, SpecificFuelConsumptionWartila6L26
-from simulator.LOS_guidance import LosParameters, StaticObstacle
+from simulator.LOS_guidance import LosParameters
+from simulator.obstacle import StaticObstacle
 from simulator.controllers import ThrottleControllerGains, HeadingControllerGains, EngineThrottleFromSpeedSetPoint, HeadingBySampledRouteController
 
 from RL_env import ShipRLEnv
@@ -34,7 +35,7 @@ parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
                     help='discount factor for reward (default: 0.99)')
 parser.add_argument('--tau', type=float, default=0.005, metavar='G',
                     help='target smoothing coefficient(τ) (default: 0.005)')
-parser.add_argument('--theta', type=float, default=1.5, metavar='G',
+parser.add_argument('--theta', type=float, default=2, metavar='G',
                     help='action sampling frequency coefficient(θ) (default: 1.5)')
 parser.add_argument('--sampling_frequency', type=int, default=5, metavar='G',
                     help='maximum amount of action sampling per episode (default: 9)')
@@ -47,7 +48,7 @@ parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, meta
                     help='Automaically adjust α (default: False)')
 
 # Neural networks parameters
-parser.add_argument('--seed', type=int, default=123456, metavar='Q',
+parser.add_argument('--seed', type=int, default=133, metavar='Q',
                     help='random seed (default: 123456)')
 parser.add_argument('--batch_size', type=int, default=64, metavar='Q',
                     help='batch size (default: 256)')
@@ -61,9 +62,9 @@ parser.add_argument('--cuda', action="store_true",
 # Timesteps and episode parameters
 parser.add_argument('--time_step', type=int, default=0.5, metavar='N',
                     help='time step size in second for ship transit simulator (default: 0.5)')
-parser.add_argument('--num_steps', type=int, default=3000, metavar='N',
+parser.add_argument('--num_steps', type=int, default=2000, metavar='N',
                     help='maximum number of steps across all episodes (default: 100000)')
-parser.add_argument('--num_steps_episode', type=int, default=2000, metavar='N',
+parser.add_argument('--num_steps_episode', type=int, default=1000, metavar='N',
                     help='Maximum number of steps per episode to avoid infinite recursion')
 parser.add_argument('--start_steps', type=int, default=100, metavar='N',
                     help='Steps sampling random actions (default: 1000)')
@@ -81,7 +82,7 @@ parser.add_argument('--num_scoring_episodes', type=int, default=20, metavar='N',
 # Others
 parser.add_argument('--radius_of_acceptance', type=int, default=100, metavar='O',
                     help='Radius of acceptance for LOS algorithm(default: 600)')
-parser.add_argument('--lookahead_distance', type=int, default=150, metavar='O',
+parser.add_argument('--lookahead_distance', type=int, default=50, metavar='O',
                     help='Lookahead distance for LOS algorithm(default: 600)')
 
 args = parser.parse_args()
@@ -169,10 +170,8 @@ ship_model = ShipModelAST(ship_config=ship_config,
                        initial_propeller_shaft_speed_rad_per_s=400 * np.pi / 30)
 
 # Place obstacles
-obstacle_data = np.loadtxt('D:\OneDrive - NTNU\PhD\PhD_Projects\ShipTransit_OptiStress\ShipTransit_Simu\obstacles.txt')
-list_of_obstacles = []
-for obstacle in obstacle_data:
-    list_of_obstacles.append(StaticObstacle(obstacle[0], obstacle[1], obstacle[2]))
+obstacle_data = r'D:\OneDrive - NTNU\PhD\PhD_Projects\ShipTransit_OptiStress\ShipTransit_AST\data\obstacles.txt'
+obstacles = StaticObstacle(obstacle_data)
 
 # Set up throttle controller
 throttle_controller_gains = ThrottleControllerGains(
@@ -186,7 +185,7 @@ throttle_controller = EngineThrottleFromSpeedSetPoint(
 )
 
 # Set up autopilot controller
-route_name = r'D:\OneDrive - NTNU\PhD\PhD_Projects\ShipTransit_OptiStress\ShipTransit_AST\start_to_end'
+route_name = r'D:\OneDrive - NTNU\PhD\PhD_Projects\ShipTransit_OptiStress\ShipTransit_AST\data\start_to_end.txt'
 heading_controller_gains = HeadingControllerGains(kp=4, kd=90, ki=0.01)
 los_guidance_parameters = LosParameters(
     radius_of_acceptance=args.radius_of_acceptance,
@@ -212,6 +211,7 @@ RL_env = ShipRLEnv(
     ship_model=ship_model,
     auto_pilot=auto_pilot,
     throttle_controller=throttle_controller,
+    obstacles = obstacles,
     integrator_term=integrator_term,
     times=times,
     ship_draw=True,
@@ -353,49 +353,150 @@ for i_episode in itertools.count(1):
         print("Test Number: {}, Avg. Reward: {}".format(testing_count, round(avg_reward, 2)))
         print("----------------------------------------")
         
+    # print(np.array(auto_pilot.navigate.north))
+    # print(np.array(auto_pilot.navigate.east))
+    
+    if i_episode == 1:
+        break
+        
 # Store the simulation results in a pandas dataframe
 results = pd.DataFrame().from_dict(ship_model.simulation_results)
 
-# Example on how a map-view can be generated
-map_fig, map_ax = plt.subplots()
-map_ax.plot(results['east position [m]'].to_numpy(), results['north position [m]'].to_numpy())
-map_ax.scatter(auto_pilot.navigate.east, auto_pilot.navigate.north, marker='x', color='green')  # Plot the waypoints
-for x, y in zip(ship_model.ship_drawings[1], ship_model.ship_drawings[0]):
-    map_ax.plot(x, y, color='black')
-# for obstacle in list_of_obstacles:
-#     obstacle.plot_obst(ax=map_ax)
+# # Example on how a map-view can be generated
+# map_fig, map_ax = plt.subplots()
+# map_ax.plot(results['east position [m]'].to_numpy(), results['north position [m]'].to_numpy())
+# map_ax.scatter(auto_pilot.navigate.east, auto_pilot.navigate.north, marker='x', color='green')  # Plot the waypoints
+# for x, y in zip(ship_model.ship_drawings[1], ship_model.ship_drawings[0]):
+#     map_ax.plot(x, y, color='black')
+# map_ax.set_title('Ship trajectory with the sampled route')
+# map_ax.set_xlabel('East position (m)')
+# map_ax.set_ylabel('North position (m)')
+# # for obstacle in list_of_obstacles:
+# #     obstacle.plot_obst(ax=map_ax)
 
-map_ax.set_aspect('equal')
+# map_ax.set_aspect('equal')
 
-route_fig, route_ax = plt.subplots()
-route_ax.scatter(auto_pilot.navigate.east, auto_pilot.navigate.north, marker='x', color='green')
-for i, (east, north) in enumerate(zip(auto_pilot.navigate.east, auto_pilot.navigate.north)):
-    route_ax.text(east, north, str(i), fontsize=8, ha='right', color='blue')  # Label with the index
-    # `ha='right'` aligns the text to the right of the point; adjust as needed
-    radius_circle = Circle((east, north), args.radius_of_acceptance, color='red', alpha=0.3, fill=True)
-    route_ax.add_patch(radius_circle)
+# route_fig, route_ax = plt.subplots()
+# route_ax.scatter(auto_pilot.navigate.east, auto_pilot.navigate.north, marker='x', color='green')
+# for i, (east, north) in enumerate(zip(auto_pilot.navigate.east, auto_pilot.navigate.north)):
+#     route_ax.text(east, north, str(i), fontsize=8, ha='right', color='blue')  # Label with the index
+#     # `ha='right'` aligns the text to the right of the point; adjust as needed
+#     radius_circle = Circle((east, north), args.radius_of_acceptance, color='red', alpha=0.3, fill=True)
+#     route_ax.add_patch(radius_circle)
+# route_ax.set_title('Sampled Route with the Order')
+# route_ax.set_xlabel('East position (m)')
+# route_ax.set_ylabel('North position (m)')
 
-# # Example on plotting time series
+# # # Example on plotting time series
+# # fuel_fig, fuel_ax = plt.subplots()
+# # results.plot(x='time [s]', y='power [kw]', ax=fuel_ax)
+
+# # int_fig, int_ax = plt.subplots()
+# # int_ax.plot(times, integrator_term)
+
+# forward_speed_fig, forward_speed_ax = plt.subplots()
+# forward_speed_ax.set_title('Forward Speed [m/s]')
+# forward_speed_ax.plot(ship_model.simulation_results['forward speed [m/s]'])
+# forward_speed_ax.set_xlabel('Time (s)')
+# forward_speed_ax.set_ylabel('Forward Speed (m/s)')
+
+# shaft_speed_fig, shaft_speed_ax = plt.subplots()
+# shaft_speed_ax.set_title('Propeller shaft speed [rpm]')
+# shaft_speed_ax.plot(ship_model.simulation_results['propeller shaft speed [rpm]'])
+# shaft_speed_ax.set_xlabel('Time (s)')
+# shaft_speed_ax.set_ylabel('Propeller Shaft Speed (rpm)')
+
+# power_fig, power_ax = plt.subplots()
+# power_ax.set_title('Power vs Available Power [kw] ')
+# power_ax.plot(ship_model.simulation_results['power me [kw]'], label="Power]")
+# power_ax.plot(ship_model.simulation_results['available power me [kw]'], label="Available Power")
+# power_ax.set_xlabel('Time (s)')
+# power_ax.set_ylabel('Power (kw)')
+# power_ax.legend()
+
 # fuel_fig, fuel_ax = plt.subplots()
-# results.plot(x='time [s]', y='power [kw]', ax=fuel_ax)
+# fuel_ax.set_title('Fuel Consumption [kg]')
+# fuel_ax.plot(ship_model.simulation_results['fuel consumption [kg]'])
+# fuel_ax.set_xlabel('Time (s)')
+# fuel_ax.set_ylabel('Fuel Consumption (kg)')
 
-# int_fig, int_ax = plt.subplots()
-# int_ax.plot(times, integrator_term)
 
-forward_speed_fig, forward_speed_ax = plt.subplots()
-forward_speed_ax.set_title('Forward Speed [m/s]')
-forward_speed_ax.plot(ship_model.simulation_results['forward speed [m/s]'])
-
-shaft_speed_fig, shaft_speed_ax = plt.subplots()
-shaft_speed_ax.set_title('Propeller shaft speed [rpm]')
-shaft_speed_ax.plot(ship_model.simulation_results['propeller shaft speed [rpm]'])
-
-power_fig, power_ax = plt.subplots()
-power_ax.set_title('Power vs Available Power [kw] ')
-power_ax.plot(ship_model.simulation_results['power me [kw]'])
-power_ax.plot(ship_model.simulation_results['available power me [kw]'])
-
-# print(np.array(auto_pilot.navigate.north))
-# print(np.array(auto_pilot.navigate.east))
+# # print(np.array(auto_pilot.navigate.north))
+# # print(np.array(auto_pilot.navigate.east))
                       
+# plt.show()
+
+# Create a No.1 2x2 grid for subplots
+fig_1, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
+axes = axes.flatten()  # Flatten the 2D array for easier indexing
+
+# Plot 1.1: Ship trajectory with sampled route
+axes[0].plot(results['east position [m]'].to_numpy(), results['north position [m]'].to_numpy())
+axes[0].scatter(auto_pilot.navigate.east, auto_pilot.navigate.north, marker='x', color='green')  # Waypoints
+for x, y in zip(ship_model.ship_drawings[1], ship_model.ship_drawings[0]):
+    axes[0].plot(x, y, color='black')
+obstacles.plot_obstacle(axes[0])
+axes[0].set_title('Ship Trajectory with the Sampled Route')
+axes[0].set_xlabel('East position (m)')
+axes[0].set_ylabel('North position (m)')
+axes[0].set_aspect('equal')
+
+# Plot 1.2: Sampled Route with the Order
+axes[2].scatter(auto_pilot.navigate.east, auto_pilot.navigate.north, marker='x', color='green')
+for i, (east, north) in enumerate(zip(auto_pilot.navigate.east, auto_pilot.navigate.north)):
+    axes[2].text(east, north, str(i), fontsize=8, ha='right', color='blue')  # Label with index
+    radius_circle = Circle((east, north), args.radius_of_acceptance, color='red', alpha=0.3, fill=True)
+    axes[2].add_patch(radius_circle)
+axes[2].set_title('Sampled Route with the Order')
+axes[2].set_xlabel('East position (m)')
+axes[2].set_ylabel('North position (m)')
+
+# Plot 1.3: Forward Speed
+axes[1].plot(results['forward speed [m/s]'])
+axes[1].set_title('Forward Speed [m/s]')
+axes[1].set_xlabel('Time (s)')
+axes[1].set_ylabel('Forward Speed (m/s)')
+
+# Plot 1.4: Heading error
+axes[3].plot(results['heading error [deg]'])
+axes[3].set_title('Heading Error [deg]')
+axes[3].set_xlabel('Time (s)')
+axes[3].set_ylabel('Heading error [deg]')
+
+# Create a No.2 2x2 grid for subplots
+fig_2, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
+axes = axes.flatten()  # Flatten the 2D array for easier indexing
+
+# Plot 2.1: Propeller Shaft Speed
+axes[0].plot(results['propeller shaft speed [rpm]'])
+axes[0].set_title('Propeller Shaft Speed [rpm]')
+axes[0].set_xlabel('Time (s)')
+axes[0].set_ylabel('Propeller Shaft Speed (rpm)')
+
+# Plot 2.2: Power vs Available Power
+axes[2].plot(results['power me [kw]'], label="Power")
+axes[2].plot(results['available power me [kw]'], label="Available Power")
+axes[2].set_title('Power vs Available Power [kw]')
+axes[2].set_xlabel('Time (s)')
+axes[2].set_ylabel('Power (kw)')
+axes[2].legend()
+
+# Plot 2.3: Cross Track error
+axes[1].plot(results['cross track error [m]'])
+axes[1].set_title('Cross Track Error [m]')
+axes[1].set_xlabel('Time (s)')
+axes[1].set_ylabel('Cross track error (m)')
+
+# Plot 2.4: Fuel Consumption
+axes[3].plot(results['fuel consumption [kg]'])
+axes[3].set_title('Fuel Consumption [kg]')
+axes[3].set_xlabel('Time (s)')
+axes[3].set_ylabel('Fuel Consumption (kg)')
+
+
+
+
+
+# Adjust layout for better spacing
+plt.tight_layout()
 plt.show()

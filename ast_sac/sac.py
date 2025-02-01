@@ -121,7 +121,7 @@ class SAC(object):
                 
                     sample_flag = True
 
-                    np.set_printoptions(precision=2, suppress=True)
+                    # np.set_printoptions(precision=2, suppress=True)
                     # print(f"Sampled action with policy: {action:}, Distance reset.")
                 
                     return action, sample_flag

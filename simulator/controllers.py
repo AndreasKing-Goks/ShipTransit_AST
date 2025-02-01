@@ -118,22 +118,36 @@ class EngineThrottleFromSpeedSetPoint:
             time_step: float,
             initial_shaft_speed_integral_error: float
     ):
-        self.ship_speed_controller = PiController(
+        # Initial internal attribute
+        self.init_ship_speed_controller = PiController(
             kp=gains.kp_ship_speed, ki=gains.ki_ship_speed, time_step=time_step
         )
-        self.shaft_speed_controller = PiController(
+        self.init_shaft_speed_controller = PiController(
             kp=gains.kp_shaft_speed,
             ki=gains.ki_shaft_speed,
             time_step=time_step,
             initial_integral_error=initial_shaft_speed_integral_error
         )
-        self.max_shaft_speed = max_shaft_speed
+        self.init_max_shaft_speed = max_shaft_speed
+        
+        # Internal attribute
+        self.ship_speed_controller = self.init_ship_speed_controller
+        self.shaft_speed_controller = self.init_shaft_speed_controller
+        self.max_shaft_speed = self.init_max_shaft_speed
 
     def throttle(self, speed_set_point, measured_speed, measured_shaft_speed):
         desired_shaft_speed = self.ship_speed_controller.pi_ctrl(setpoint=speed_set_point, measurement=measured_speed)
         desired_shaft_speed = self.ship_speed_controller.sat(val=desired_shaft_speed, low=0, hi=self.max_shaft_speed)
         throttle = self.shaft_speed_controller.pi_ctrl(setpoint=desired_shaft_speed, measurement=measured_shaft_speed)
         return self.shaft_speed_controller.sat(val=throttle, low=0, hi=1.1)
+    
+    def reset(self):
+        ''' Reset the internal attributes of the throttle controller
+            its initial values
+        '''
+        self.ship_speed_controller = self.init_ship_speed_controller
+        self.shaft_speed_controller = self.init_shaft_speed_controller
+        self.max_shaft_speed = self.init_max_shaft_speed
 
 
 class ThrottleFromSpeedSetPointSimplifiedPropulsion:
@@ -236,16 +250,30 @@ class HeadingBySampledRouteController:
             integral_gain=los_parameters.integral_gain,
             integrator_windup_limit=los_parameters.integrator_windup_limit,
         )
-        self.next_wpt = 1
-        self.prev_wpt = 0
         
-        self.heading_ref = 0
-        self.heading_mea = 0
+        ## Initial internal attributes
+        self.init_next_wpt = 1
+        self.init_prev_wpt = 0
         
-        self.num_of_samplings = num_of_samplings
-        self.sampling_counters = 0
-        self.distance_points_north = self.navigate.north[1] - self.navigate.north[0]
-        self.distance_points_east = self.navigate.east[1] - self.navigate.east[0]
+        self.init_heading_ref = 0
+        self.init_heading_mea = 0
+        
+        self.init_num_of_samplings = num_of_samplings
+        self.init_sampling_counters = 0
+        self.init_distance_points_north = self.navigate.north[1] - self.navigate.north[0]
+        self.init_distance_points_east = self.navigate.east[1] - self.navigate.east[0]
+        
+        ## Internal attributes
+        self.next_wpt = self.init_next_wpt
+        self.prev_wpt = self.init_prev_wpt
+        
+        self.heading_ref = self.init_heading_ref
+        self.heading_mea = self.init_heading_mea
+        
+        self.num_of_samplings = self.init_num_of_samplings
+        self.sampling_counters = self.init_sampling_counters
+        self.distance_points_north = self.init_distance_points_north
+        self.distance_points_east = self.init_distance_points_east
         
     def update_route(self, route_shifts):
         # Get the route shifts and update the new route
@@ -269,5 +297,26 @@ class HeadingBySampledRouteController:
     def get_heading_error(self):
         return np.abs(self.heading_mea - self.heading_ref)
     
-    def get_error_cross_track(self):
+    def get_cross_track_error(self):
         return self.navigate.e_ct
+    
+    def reset(self):
+        ''' Reset the internal attributes of the heading controller
+            and the navigation system to its initial values
+        '''
+        # Internal attributes reset
+        self.next_wpt = self.init_next_wpt
+        self.prev_wpt = self.init_prev_wpt
+        
+        self.heading_ref = self.init_heading_ref
+        self.heading_mea = self.init_heading_mea
+        
+        self.num_of_samplings = self.init_num_of_samplings
+        self.sampling_counters = self.init_sampling_counters
+        self.distance_points_north = self.init_distance_points_north
+        self.distance_points_east = self.init_distance_points_east
+        
+        # Navigation system attributes
+        self.navigate.reset()
+        
+        

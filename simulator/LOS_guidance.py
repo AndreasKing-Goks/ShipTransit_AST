@@ -42,14 +42,25 @@ class NavigationSystem:
             integral_gain=0.01,
             integrator_windup_limit=0.5,
     ):
-        self.route = route
+        ## Initial internal attributes
+        self.init_route = route
+        self.init_ra = radius_of_acceptance
+        self.init_r = lookahead_distance
+        self.init_ki = integral_gain
+        self.init_e_ct = 0
+        self.init_e_ct_int = 0
+        self.init_integrator_limit = integrator_windup_limit
+        
+        ## Internal attributes
+        self.route = self.init_route
+        self.ra = self.init_ra
+        self.r = self.init_r
+        self.ki = self.init_ki
+        self.e_ct = self.init_e_ct
+        self.e_ct_int = self.init_e_ct_int
+        self.integrator_limit = self.init_integrator_limit
+        
         self.load_waypoints(self.route)
-        self.ra = radius_of_acceptance
-        self.r = lookahead_distance
-        self.ki = integral_gain
-        self.e_ct = 0
-        self.e_ct_int = 0
-        self.integrator_limit = integrator_windup_limit
 
     def load_waypoints(self, route, print_init_msg=False):
         ''' Reads the file containing the route and stores it as an
@@ -80,6 +91,8 @@ class NavigationSystem:
             close enough to a waypoint, to proceed ot the next waypoint. Example
             of usage in the method "rudderang_from_route()" from the ShipDyn-class.
         '''
+        # print(f"Length of waypoints: {len(self.north)}")
+        # print(k)
         if (self.north[k] - N) ** 2 + (
                 self.east[k] - E) ** 2 <= self.ra ** 2:  # Check that we are within circle of acceptance
             if len(self.north) > k + 1:  # If number of waypoints are greater than current waypoint index
@@ -106,6 +119,21 @@ class NavigationSystem:
             self.e_ct_int += e_ct / delta
         chi_r = math.atan(-e_ct / delta - self.e_ct_int*self.ki)
         return alpha_k + chi_r
+    
+    def reset(self):
+        ''' Reset the internal attributes of the Navigation System 
+            to its initial values, while also resetting the route 
+            container
+        '''
+        self.route = self.init_route
+        self.ra = self.init_ra
+        self.r = self.init_r
+        self.ki = self.init_ki
+        self.e_ct = self.init_e_ct
+        self.e_ct_int = self.init_e_ct_int
+        self.integrator_limit = self.init_integrator_limit
+        
+        self.load_waypoints(self.route)
     
 
 class StaticObstacle:

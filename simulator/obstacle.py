@@ -1,0 +1,76 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import os
+
+class StaticObstacle:
+    ''' This class is used to define a static obstacle. It can only make
+        circular obstacles. The class is instantiated with the following
+        input paramters:
+        - n_pos: The north coordinate of the center of the obstacle.
+        - e_pos: The east coordinate of the center of the obstacle.
+        - radius: The radius of the obstacle.
+        
+        No need for Reset method because obstacles will not change across
+        the entire SAC episodes
+    '''
+
+    def __init__(self, obstacle_data, print_init_msg=False):
+        
+        self.obstacles = obstacle_data
+        self.n_obs = []
+        self.e_obs = []
+        self.r_obs = []
+        self.data = None
+        
+        self.load_obstacles(self.obstacles)
+        
+    def load_obstacles(self, obstacles, print_init_msg=False):
+        # Load the file if the input is a string (file path)
+        if isinstance(obstacles, str):
+            if not os.path.exists(obstacles):
+                raise FileNotFoundError(f"ERROR: File '{obstacles}' not found!")  # Check file existence
+            if print_init_msg:
+                print(f"Loading route file from: {obstacles}")  # Debugging
+            self.data = np.loadtxt(obstacles)
+        else:
+            self.data = obstacles  # Assume it's already a numpy array
+
+        if self.data.ndim == 1 and self.data.shape[0] == 3:
+            # Single obstacle case, reshape to (1,3)
+            self.data = self.data.reshape(1, 3)
+            
+        self.num_obstacles = np.shape(self.data)[0]
+        
+        # To avoid single case obstacles as scalar
+        self.n_obs = self.data[:, 0].tolist()
+        self.e_obs = self.data[:, 1].tolist()
+        self.r_obs = self.data[:, 2].tolist()
+
+    def obstacles_distance(self, n_ship, e_ship):
+        ''' Returns the distance from a ship with coordinates (north, east)=
+            (n_ship, e_ship), to the closest point on the perifery of the
+            circular obstacle.
+        '''
+        list_distance = np.zeros(self.num_obstacles)
+        
+        for i in range(self.num_obstacles):
+            rad_2 = (n_ship - self.n_obs[i]) ** 2 + (e_ship - self.e_obs[i]) ** 2
+            rad = np.sqrt(abs(rad_2))
+            list_distance[i] = rad - self.r_obs[i]
+            
+        return np.min(list_distance)
+    
+    def obstacles_inside(self, n_ship, e_ship):
+        ''' Checks if the ship is inside any obstacle 
+        '''
+        distances_squared = (n_ship - np.array(self.n_obs)) ** 2 + (e_ship - np.array(self.e_obs)) ** 2
+        radii_squared = np.array(self.r_obs) ** 2
+
+        return np.any(distances_squared <= radii_squared)  # True if inside any obstacle
+
+    def plot_obstacle(self, ax):
+        ''' This method can be used to plot the obstacle in a
+            map-view.
+        '''
+        for i in range(self.num_obstacles):
+            ax.add_patch(plt.Circle((self.e_obs[i], self.n_obs[i]), radius=self.r_obs[i], fill=True, color='grey'))
