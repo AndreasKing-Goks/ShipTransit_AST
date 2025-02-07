@@ -60,13 +60,24 @@ class StaticObstacle:
             
         return np.min(list_distance)
     
-    def obstacles_inside(self, n_ship, e_ship):
+    def if_ship_inside_obstacles(self, n_ship, e_ship):
         ''' Checks if the ship is inside any obstacle 
         '''
         distances_squared = (n_ship - np.array(self.n_obs)) ** 2 + (e_ship - np.array(self.e_obs)) ** 2
         radii_squared = np.array(self.r_obs) ** 2
 
         return np.any(distances_squared <= radii_squared)  # True if inside any obstacle
+    
+    def if_route_inside_obstacles(self, n_route, e_route):
+        ''' Checks if the sampled routes are inside any obstacle 
+        '''
+        distances_squared = (n_route - np.array(self.n_obs)) ** 2 + (e_route - np.array(self.e_obs)) ** 2
+        radii_squared = np.array(self.r_obs) ** 2
+
+        if np.any(distances_squared <= radii_squared):  # True if inside any obstacle
+          return True
+      
+        return False  
 
     def plot_obstacle(self, ax):
         ''' This method can be used to plot the obstacle in a

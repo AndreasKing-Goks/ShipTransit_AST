@@ -6,6 +6,7 @@ It requires the construction of the ship machinery system to construct the ship 
 
 import numpy as np
 import matplotlib.pyplot as plt
+import copy
 from collections import defaultdict
 from typing import NamedTuple, List
 
@@ -114,7 +115,7 @@ class BaseShipModel:
         self.init_int = EulerInt()  # Instantiate the Euler integrator
 
         # Instantiate ship draw plotting
-        self.init_drw = ShipDraw()  # Instantiate the ship drawing class
+        self.init_draw = ShipDraw()  # Instantiate the ship drawing class
         self.init_ship_drawings = [[], []]  # Arrays for storing ship drawing data
 
         # Setup wind effect on ship
@@ -175,8 +176,8 @@ class BaseShipModel:
         self.int.set_sim_time(simulation_config.simulation_time)
 
         # Instantiate ship draw plotting
-        self.drw = self.init_drw
-        self.ship_drawings = self.init_ship_drawings
+        self.draw = self.init_draw
+        self.ship_drawings = copy.deepcopy(self.init_ship_drawings)
 
         # Setup wind effect on ship
         self.rho_a = self.init_rho_a
@@ -329,9 +330,9 @@ class BaseShipModel:
 
             plot(ship_drawings[1][n], ship_drawings[0][n])
         '''
-        x, y = self.drw.local_coords()
-        x_ned, y_ned = self.drw.rotate_coords(x, y, self.yaw_angle)
-        x_ned_trans, y_ned_trans = self.drw.translate_coords(x_ned, y_ned, self.north, self.east)
+        x, y = self.draw.local_coords()
+        x_ned, y_ned = self.draw.rotate_coords(x, y, self.yaw_angle)
+        x_ned_trans, y_ned_trans = self.draw.translate_coords(x_ned, y_ned, self.north, self.east)
         self.ship_drawings[0].append(x_ned_trans)
         self.ship_drawings[1].append(y_ned_trans)
         
@@ -384,8 +385,8 @@ class BaseShipModel:
         # self.int.set_sim_time(simulation_config.simulation_time)
 
         # Instantiate ship draw plotting
-        self.drw = self.init_drw
-        self.ship_drawings = self.init_ship_drawings
+        self.draw = self.init_draw
+        self.ship_drawings = copy.deepcopy(self.init_ship_drawings)
 
         # Setup wind effect on ship
         self.rho_a = self.init_rho_a
@@ -568,8 +569,7 @@ class ShipModelAST(BaseShipModel):
             initial_propeller_shaft_speed_rad_per_sec=initial_propeller_shaft_speed_rad_per_s,
             time_step=self.int.dt
         )
-        self.init_simulation_results = defaultdict(list)
-        self.simulation_results = self.init_simulation_results
+        self.simulation_results = defaultdict(list)
 
     def three_dof_kinetics(self, thrust_force=None, rudder_angle=None, load_percentage=None, *args, **kwargs):
         ''' Calculates accelerations of the ship, as a function
@@ -658,7 +658,7 @@ class ShipModelAST(BaseShipModel):
         )
         self.simulation_results['power me [kw]'].append(load_data.load_on_main_engine / 1000)
         self.simulation_results['available power me [kw]'].append(
-            self.ship_machinery_model.mode.main_engine_capacity / 1000
+            self.ship_machinery_model.mode.main_engine_capacity / 1000 * 1.5
         )
         self.simulation_results['power electrical [kw]'].append(load_data.load_on_electrical / 1000)
         self.simulation_results['available power electrical [kw]'].append(
@@ -692,4 +692,5 @@ class ShipModelAST(BaseShipModel):
         # Call the reset method from the parent class
         super().reset()
         
-        self.simulation_results = self.init_simulation_results
+        #  Also reset the results and draws container
+        self.simulation_results = defaultdict(list)

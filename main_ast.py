@@ -15,6 +15,8 @@ import itertools
 import datetime
 import argparse
 
+from collections import defaultdict
+
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 
@@ -35,9 +37,9 @@ parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
                     help='discount factor for reward (default: 0.99)')
 parser.add_argument('--tau', type=float, default=0.005, metavar='G',
                     help='target smoothing coefficient(τ) (default: 0.005)')
-parser.add_argument('--theta', type=float, default=2, metavar='G',
+parser.add_argument('--theta', type=float, default=1.5, metavar='G',
                     help='action sampling frequency coefficient(θ) (default: 1.5)')
-parser.add_argument('--sampling_frequency', type=int, default=5, metavar='G',
+parser.add_argument('--sampling_frequency', type=int, default=8, metavar='G',
                     help='maximum amount of action sampling per episode (default: 9)')
 parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
                     help='learning rate (default: 0.0003)')
@@ -48,7 +50,7 @@ parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, meta
                     help='Automaically adjust α (default: False)')
 
 # Neural networks parameters
-parser.add_argument('--seed', type=int, default=133, metavar='Q',
+parser.add_argument('--seed', type=int, default=433, metavar='Q',
                     help='random seed (default: 123456)')
 parser.add_argument('--batch_size', type=int, default=64, metavar='Q',
                     help='batch size (default: 256)')
@@ -218,11 +220,11 @@ RL_env = ShipRLEnv(
     time_since_last_ship_drawing=30,
 )
 
-# Pseudorandom seeding
-RL_env.seed(args.seed)
-RL_env.action_space.seed(args.seed)
-torch.manual_seed(args.seed)
-np.random.seed(args.seed)
+# # Pseudorandom seeding
+# RL_env.seed(args.seed)
+# RL_env.action_space.seed(args.seed)
+# torch.manual_seed(args.seed)
+# np.random.seed(args.seed)
 
 # Agent
 agent = SAC(RL_env, args)
@@ -237,6 +239,10 @@ memory = ReplayMemory(args.replay_size, args.seed)
 ## Training loop
 total_numsteps = 0
 updates = 0
+
+## STORE SAMPLED ACTION
+action_record = defaultdict(list)
+# After this develop a function that can read the sampled action record based on episode
 
 ## NOTE:
 # We have SAC iterations and simulation time steps
@@ -259,16 +265,22 @@ for i_episode in itertools.count(1):
         else:
             init = False
         
-        if args.start_steps > total_numsteps:      
+        if args.start_steps > total_numsteps:
             action, sample_flag = agent.select_action(state,
                                          done,
                                          init=init,
-                                         mode=0) # Random sampling
+                                         mode=0) # Random sampling 
+            
         else:
             action, sample_flag = agent.select_action(state, 
                                          done,
                                          init=init,
                                          mode=1) # Policy based sampling
+            
+        ## STORE SAMPLED ACTION
+        if sample_flag:
+            sampled_action_info = np.insert(action, 0, ship_model.int.time)
+            action_record[i_episode].append(sampled_action_info)
 
         if len(memory) > args.batch_size:
             # Number of updates per step in environment
@@ -355,76 +367,15 @@ for i_episode in itertools.count(1):
         
     # print(np.array(auto_pilot.navigate.north))
     # print(np.array(auto_pilot.navigate.east))
+
     
-    if i_episode == 1:
-        break
-        
+    # if i_episode == 5:
+    #     # print(ship_model.simulation_results['power me [kw]'])
+    #     # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
+    #     break
+
 # Store the simulation results in a pandas dataframe
 results = pd.DataFrame().from_dict(ship_model.simulation_results)
-
-# # Example on how a map-view can be generated
-# map_fig, map_ax = plt.subplots()
-# map_ax.plot(results['east position [m]'].to_numpy(), results['north position [m]'].to_numpy())
-# map_ax.scatter(auto_pilot.navigate.east, auto_pilot.navigate.north, marker='x', color='green')  # Plot the waypoints
-# for x, y in zip(ship_model.ship_drawings[1], ship_model.ship_drawings[0]):
-#     map_ax.plot(x, y, color='black')
-# map_ax.set_title('Ship trajectory with the sampled route')
-# map_ax.set_xlabel('East position (m)')
-# map_ax.set_ylabel('North position (m)')
-# # for obstacle in list_of_obstacles:
-# #     obstacle.plot_obst(ax=map_ax)
-
-# map_ax.set_aspect('equal')
-
-# route_fig, route_ax = plt.subplots()
-# route_ax.scatter(auto_pilot.navigate.east, auto_pilot.navigate.north, marker='x', color='green')
-# for i, (east, north) in enumerate(zip(auto_pilot.navigate.east, auto_pilot.navigate.north)):
-#     route_ax.text(east, north, str(i), fontsize=8, ha='right', color='blue')  # Label with the index
-#     # `ha='right'` aligns the text to the right of the point; adjust as needed
-#     radius_circle = Circle((east, north), args.radius_of_acceptance, color='red', alpha=0.3, fill=True)
-#     route_ax.add_patch(radius_circle)
-# route_ax.set_title('Sampled Route with the Order')
-# route_ax.set_xlabel('East position (m)')
-# route_ax.set_ylabel('North position (m)')
-
-# # # Example on plotting time series
-# # fuel_fig, fuel_ax = plt.subplots()
-# # results.plot(x='time [s]', y='power [kw]', ax=fuel_ax)
-
-# # int_fig, int_ax = plt.subplots()
-# # int_ax.plot(times, integrator_term)
-
-# forward_speed_fig, forward_speed_ax = plt.subplots()
-# forward_speed_ax.set_title('Forward Speed [m/s]')
-# forward_speed_ax.plot(ship_model.simulation_results['forward speed [m/s]'])
-# forward_speed_ax.set_xlabel('Time (s)')
-# forward_speed_ax.set_ylabel('Forward Speed (m/s)')
-
-# shaft_speed_fig, shaft_speed_ax = plt.subplots()
-# shaft_speed_ax.set_title('Propeller shaft speed [rpm]')
-# shaft_speed_ax.plot(ship_model.simulation_results['propeller shaft speed [rpm]'])
-# shaft_speed_ax.set_xlabel('Time (s)')
-# shaft_speed_ax.set_ylabel('Propeller Shaft Speed (rpm)')
-
-# power_fig, power_ax = plt.subplots()
-# power_ax.set_title('Power vs Available Power [kw] ')
-# power_ax.plot(ship_model.simulation_results['power me [kw]'], label="Power]")
-# power_ax.plot(ship_model.simulation_results['available power me [kw]'], label="Available Power")
-# power_ax.set_xlabel('Time (s)')
-# power_ax.set_ylabel('Power (kw)')
-# power_ax.legend()
-
-# fuel_fig, fuel_ax = plt.subplots()
-# fuel_ax.set_title('Fuel Consumption [kg]')
-# fuel_ax.plot(ship_model.simulation_results['fuel consumption [kg]'])
-# fuel_ax.set_xlabel('Time (s)')
-# fuel_ax.set_ylabel('Fuel Consumption (kg)')
-
-
-# # print(np.array(auto_pilot.navigate.north))
-# # print(np.array(auto_pilot.navigate.east))
-                      
-# plt.show()
 
 # Create a No.1 2x2 grid for subplots
 fig_1, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
@@ -494,9 +445,10 @@ axes[3].set_xlabel('Time (s)')
 axes[3].set_ylabel('Fuel Consumption (kg)')
 
 
-
+# print(action_record[1])
 
 
 # Adjust layout for better spacing
 plt.tight_layout()
 plt.show()
+

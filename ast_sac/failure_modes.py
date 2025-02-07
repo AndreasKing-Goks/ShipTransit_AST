@@ -21,8 +21,10 @@ def isBeachingFailure(pos,
                       obstacle:StaticObstacle): # Pos = [n_pos, e_pos]
     ## Ship stuck in the terminal position state
     n_ship, e_ship, _ = pos
-    return obstacle.obstacles_inside(n_ship, e_ship)
+    return obstacle.if_ship_inside_obstacles(n_ship, e_ship)
 
 def isBlackOutFailure(power_load, available_power):
     ## Diesel engine overloaded
+    # print(power_load)
+    # print(available_power)
     return power_load > available_power
