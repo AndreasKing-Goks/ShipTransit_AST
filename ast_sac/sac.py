@@ -4,6 +4,7 @@ import torch
 import torch.nn.functional as F
 from torch.optim import Adam
 from RL_env import ShipRLEnv
+from simulator.obstacle import StaticObstacle
 from ast_sac.utils import soft_update, hard_update
 from ast_sac.nn_models import GaussianPolicy, QNetwork, DeterministicPolicy
 
@@ -14,6 +15,7 @@ class SAC(object):
                  args):
 
         self.env = RL_env
+        
         self.num_inputs = self.env.observation_space.shape[0]
         self.action_space = self.env.action_space
         
@@ -59,7 +61,7 @@ class SAC(object):
         self.segment_AB = np.sqrt(self.segment_AB_north**2 + self.segment_AB_east**2)
         
         self.distance_travelled = 0
-        self.sampling_count = 1
+        self.sampling_count = 0
         
         self.last_route_point_north = 0 
         self.last_route_point_east = 0
@@ -108,6 +110,39 @@ class SAC(object):
                 if self.sampling_count < self.sampling_frequency:
                     route_point_north = north_deviation + self.segment_AB_north * self.sampling_count
                     route_point_east = east_deviation + self.segment_AB_east * self.sampling_count
+                    
+                    i = 0
+                    
+                    route_is_inside = self.env.obstacles.if_route_inside_obstacles(route_point_north, route_point_east)
+                    
+                    # print(self.sampling_count)
+                    
+                    while route_is_inside  or i == 10:
+                        
+                        # Sample action based on mode
+                        if mode == 0:
+                            act = self.env.action_space.sample()
+                        elif mode == 1:
+                            act, _, _ = self.policy.sample(state)
+                            act = act.detach().cpu().numpy()[0]
+                        elif mode == 2:
+                            _, _, act = self.policy.sample(state)
+                            act = act.detach().cpu().numpy()[0]
+                        
+                        # Unpack action
+                        north_deviation, east_deviation, desired_forward_speed = act
+                        
+                        # Sample new route until the new route point is not inside the obstacles
+                        route_point_north = north_deviation + self.segment_AB_north * self.sampling_count
+                        route_point_east = east_deviation + self.segment_AB_east * self.sampling_count
+                        
+                        # Set up counter to limit the the auto-sampling
+                        i += 1
+                        
+                        if i == 100:
+                            print('Achieved max re-sampling')
+                            break
+                        
                     action = np.array([route_point_north, route_point_east, desired_forward_speed])
 
                     # Store the sampled action until the next sampling
@@ -146,6 +181,9 @@ class SAC(object):
         
         return action, sample_flag
       
+    def select_action_reset(self):
+        self.sampling_count = 0
+        self.stop_sampling = False
 
     def update_parameters(self, memory, batch_size, updates):
         # Sample a batch from memory

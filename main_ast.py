@@ -220,11 +220,11 @@ RL_env = ShipRLEnv(
     time_since_last_ship_drawing=30,
 )
 
-# # Pseudorandom seeding
-# RL_env.seed(args.seed)
-# RL_env.action_space.seed(args.seed)
-# torch.manual_seed(args.seed)
-# np.random.seed(args.seed)
+# Pseudorandom seeding
+RL_env.seed(args.seed)
+RL_env.action_space.seed(args.seed)
+torch.manual_seed(args.seed)
+np.random.seed(args.seed)
 
 # Agent
 agent = SAC(RL_env, args)
@@ -315,6 +315,9 @@ for i_episode in itertools.count(1):
         # Set the next state as current state for the next step
         state = next_state
         
+    # Reset the action sampling internal state at the end of episode
+    agent.select_action_reset()
+    
     # print(episode_steps)
 
     if total_numsteps > args.num_steps:
@@ -369,10 +372,10 @@ for i_episode in itertools.count(1):
     # print(np.array(auto_pilot.navigate.east))
 
     
-    # if i_episode == 5:
-    #     # print(ship_model.simulation_results['power me [kw]'])
-    #     # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
-    #     break
+    if i_episode == 3:
+        # print(ship_model.simulation_results['power me [kw]'])
+        # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
+        break
 
 # Store the simulation results in a pandas dataframe
 results = pd.DataFrame().from_dict(ship_model.simulation_results)
