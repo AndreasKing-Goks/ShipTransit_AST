@@ -56,8 +56,8 @@ class ShipRLEnv(Env):
         
         # Define action space [route_point_n, route_point_e, desired_speed]
         self.action_space = Box(
-            low = np.array([-100, -100, 5], dtype=np.float32),
-            high = np.array([100, 100, 10], dtype=np.float32),
+            low = np.array([-200, -200, 5], dtype=np.float32),
+            high = np.array([200, 200, 8], dtype=np.float32),
         )
         
         # Define initial state
@@ -143,12 +143,12 @@ class ShipRLEnv(Env):
         
         next_state = np.array([pos[0], pos[1], pos[2], self.ship_model.forward_speed, measured_shaft_rpm, los_ct_error, engine_load]) 
         
-        reward, done = reward_function(pos, heading_error, measured_shaft_rpm, los_ct_error, engine_load, av_engine_load, self.auto_pilot, self.obstacles)
+        reward, done, status = reward_function(pos, heading_error, measured_shaft_rpm, los_ct_error, engine_load, av_engine_load, self.auto_pilot, self.obstacles)
         
         # Step up the simulator
         self.ship_model.int.next_time()
         
-        return next_state, reward, done
+        return next_state, reward, done, status
     
     
     def seed(self, seed=None):

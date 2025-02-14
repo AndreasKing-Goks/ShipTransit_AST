@@ -27,7 +27,7 @@ def non_failure_terminal_state(pos,
         
     return reward_e_ct + reward_e_hea + reward_col
     
-def failure_terminal_state(measured_shaft_rpm, 
+def terminal_state(measured_shaft_rpm, 
                            los_ct_error, 
                            pos, 
                            engine_load, 
@@ -35,6 +35,7 @@ def failure_terminal_state(measured_shaft_rpm,
                            auto_pilot, 
                            obstacles):
     reward_terminal = 0
+    status = " "
     done = False
     
     # Reaching the Endpoint
@@ -50,37 +51,45 @@ def failure_terminal_state(measured_shaft_rpm,
         reward_end =  1000
         reward_terminal += reward_end
         done = True
-        print("Ship has reached destination point!")
+        status += " Reach endpoint "
+        # print("Ship has reached destination point!")
     
     # Mechanical Failure
     if isMechanicalFailure(measured_shaft_rpm):
         reward_mf = -10
         reward_terminal += reward_mf
         done = True
-        print('Ship experiencing Mechanical Failure!')
+        status += "Mechanical failure "
+        # print('Ship experiencing Mechanical Failure!')
             
     # Navigation Failure
     if isNavigationFailure(los_ct_error):
         reward_nf = -10
         reward_terminal += reward_nf
         done= True
-        print('Ship experiencing Navigation Failure!')
+        status += "Navigation failure "
+        # print('Ship experiencing Navigation Failure!')
             
     # Beaching Failure
     if isBeachingFailure(pos, obstacles):
         reward_bf = -100
         reward_terminal += reward_bf
         done = True
-        print('Ship is beached out!')
+        status += "Beaching failure "
+        # print('Ship is beached out!')
             
     # Black Out Failure
     if isBlackOutFailure(engine_load, av_engine_load):
         reward_bof = -10
         reward_terminal += reward_bof
         done = True
-        print('Ship experiencing Blackout Failure')
+        status += "Blackout failure "
+        # print('Ship experiencing Blackout Failure')
         
-    return reward_terminal, done
+    if done == False:
+        status = " Not in terminal state "
+        
+    return reward_terminal, done, status
         
 def reward_function(pos, heading_error, measured_shaft_rpm, los_ct_error, engine_load, av_engine_load, auto_pilot, obstacles):
     
@@ -91,9 +100,9 @@ def reward_function(pos, heading_error, measured_shaft_rpm, los_ct_error, engine
     reward_non_failure_terminal = non_failure_terminal_state(pos, los_ct_error, heading_error, obstacles)
     
     # Compute failure terminal state reward
-    reward_failure_terminal, done = failure_terminal_state(measured_shaft_rpm, los_ct_error, pos, engine_load, av_engine_load, auto_pilot, obstacles)
+    reward_terminal, done, status = terminal_state(measured_shaft_rpm, los_ct_error, pos, engine_load, av_engine_load, auto_pilot, obstacles)
     
     # Compute overall reward
-    reward = reward_non_terminal + reward_non_failure_terminal + reward_failure_terminal
+    reward = reward_non_terminal + reward_non_failure_terminal + reward_terminal
     
-    return reward, done
+    return reward, done, status

@@ -41,6 +41,9 @@ parser.add_argument('--theta', type=float, default=1.5, metavar='G',
                     help='action sampling frequency coefficient(θ) (default: 1.5)')
 parser.add_argument('--sampling_frequency', type=int, default=8, metavar='G',
                     help='maximum amount of action sampling per episode (default: 9)')
+parser.add_argument('--max_route_resampling', type=int, default=1000, metavar='G',
+                    help='maximum amount of route resampling if route is sampled inside\
+                        obstacle (default: 1000)')
 parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
                     help='learning rate (default: 0.0003)')
 parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
@@ -64,19 +67,19 @@ parser.add_argument('--cuda', action="store_true",
 # Timesteps and episode parameters
 parser.add_argument('--time_step', type=int, default=0.5, metavar='N',
                     help='time step size in second for ship transit simulator (default: 0.5)')
-parser.add_argument('--num_steps', type=int, default=2000, metavar='N',
+parser.add_argument('--num_steps', type=int, default=100000, metavar='N',
                     help='maximum number of steps across all episodes (default: 100000)')
-parser.add_argument('--num_steps_episode', type=int, default=1000, metavar='N',
-                    help='Maximum number of steps per episode to avoid infinite recursion')
-parser.add_argument('--start_steps', type=int, default=100, metavar='N',
-                    help='Steps sampling random actions (default: 1000)')
+parser.add_argument('--num_steps_episode', type=int, default=600, metavar='N',
+                    help='Maximum number of steps per episode to avoid infinite recursion (default: 600)')
+parser.add_argument('--start_steps', type=int, default=10000, metavar='N',
+                    help='Steps sampling random actions (default: 10000)')
 parser.add_argument('--update_per_step', type=int, default=1, metavar='N',
                     help='model updates per simulator step (default: 1)')
-parser.add_argument('--sampling_step', type=int, default=10, metavar='N',
+parser.add_argument('--sampling_step', type=int, default=1000, metavar='N',
                     help='Step for doing full action sampling (default:1000')
 parser.add_argument('--target_update_interval', type=int, default=1, metavar='N',
                     help='Value target update per no. of updates per step (default: 1)')
-parser.add_argument('--scoring_episode_every', type=int, default=40, metavar='N',
+parser.add_argument('--scoring_episode_every', type=int, default=20, metavar='N',
                     help='Number of every episode to evaluate learning performance(default: 40)')
 parser.add_argument('--num_scoring_episodes', type=int, default=20, metavar='N',
                     help='Number of episode for learning performance assesment(default: 20)')
@@ -220,11 +223,11 @@ RL_env = ShipRLEnv(
     time_since_last_ship_drawing=30,
 )
 
-# Pseudorandom seeding
-RL_env.seed(args.seed)
-RL_env.action_space.seed(args.seed)
-torch.manual_seed(args.seed)
-np.random.seed(args.seed)
+# # Pseudorandom seeding
+# RL_env.seed(args.seed)
+# RL_env.action_space.seed(args.seed)
+# torch.manual_seed(args.seed)
+# np.random.seed(args.seed)
 
 # Agent
 agent = SAC(RL_env, args)
@@ -239,6 +242,7 @@ memory = ReplayMemory(args.replay_size, args.seed)
 ## Training loop
 total_numsteps = 0
 updates = 0
+testing_count = 0
 
 ## STORE SAMPLED ACTION
 action_record = defaultdict(list)
@@ -266,20 +270,21 @@ for i_episode in itertools.count(1):
             init = False
         
         if args.start_steps > total_numsteps:
-            action, sample_flag = agent.select_action(state,
+            action, sample_flag = agent.select_action_lastpos(state,
                                          done,
                                          init=init,
                                          mode=0) # Random sampling 
             
         else:
-            action, sample_flag = agent.select_action(state, 
+            action, sample_flag = agent.select_action_lastpos(state, 
                                          done,
                                          init=init,
                                          mode=1) # Policy based sampling
             
         ## STORE SAMPLED ACTION
         if sample_flag:
-            sampled_action_info = np.insert(action, 0, ship_model.int.time)
+            sampled_action_info = np.insert(action, 0, RL_env.ship_model.int.time) # time is not reset here
+            # print(i_episode)
             action_record[i_episode].append(sampled_action_info)
 
         if len(memory) > args.batch_size:
@@ -296,7 +301,7 @@ for i_episode in itertools.count(1):
                 updates += 1   
                         
         # print('here2')            
-        next_state, reward, done = RL_env.step(action, sample_flag)
+        next_state, reward, done, status = RL_env.step(action, sample_flag)
         episode_steps += 1
         total_numsteps += 1
         episode_reward += reward
@@ -304,10 +309,10 @@ for i_episode in itertools.count(1):
         # Ignore the "done" signal if it comes from hitting the time horizon
         mask = 1 if episode_steps == args.num_steps_episode else float(not done)
         
-        # ONLY FOR TRAINING, WHEN EPISODE STEPS IS LIMITED
-        # Limit the simulator stepping to avoid infinite recursion for debugging
-        if episode_steps > args.num_steps_episode:
-            break
+        # # ONLY FOR TRAINING, WHEN EPISODE STEPS IS LIMITED
+        # # Limit the simulator stepping to avoid infinite recursion for debugging
+        # if episode_steps > args.num_steps_episode:
+        #     break
     
         # Push the transtition to memory
         memory.push(state, action, reward, next_state, mask)
@@ -324,29 +329,29 @@ for i_episode in itertools.count(1):
         break
 
     writer.add_scalar('reward/train', reward, i_episode)
-    print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
+    print("Episode: {}, Total numsteps: {}, Episode steps: {}, Reward: {}, Status:{}".\
+        format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2), status))
     
     ## Asses learning performance
     if i_episode % args.scoring_episode_every == 0 and args.eval is True:
         avg_reward = 0.
-        testing_count = 0
         for _ in range (args.num_scoring_episodes):
             state = RL_env.reset()
             episode_reward = 0
             episode_steps_eval = 0
             done = False
             while not done:
-                if episode_steps_eval < 2:
+                if episode_steps_eval < 1:
                     init_eval = True
                 else:
                     init_eval = False
                     
-                action, sample_flag = agent.select_action(state, 
+                action, sample_flag = agent.select_action_lastpos(state, 
                                          done,
                                          init=init_eval,
                                          mode=2) # Policy based sampling
                 
-                next_state, reward, done = RL_env.step(action, sample_flag)
+                next_state, reward, done, _ = RL_env.step(action, sample_flag)
                 episode_reward += reward
                 
                 state = next_state
@@ -372,21 +377,50 @@ for i_episode in itertools.count(1):
     # print(np.array(auto_pilot.navigate.east))
 
     
-    if i_episode == 3:
-        # print(ship_model.simulation_results['power me [kw]'])
-        # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
-        break
+    # if i_episode == 2:
+    #     # print(ship_model.simulation_results['power me [kw]'])
+    #     # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
+    #     break
 
-# Store the simulation results in a pandas dataframe
-results = pd.DataFrame().from_dict(ship_model.simulation_results)
+## Convert action_record to data frame
+all_action_record = []
+
+for episode, data in action_record.items():
+    ep_action_record_df = pd.DataFrame(data, columns=["sample time [s]", "route_north [m]", "route_east [m]", "velocity [m/s]"])
+    ep_action_record_df["episode"] = episode
+    all_action_record.append(ep_action_record_df)
+
+# Concatenate all episodes into one large DataFrame
+action_record_df = pd.concat(all_action_record, ignore_index=True)   
+
+# Convert episode to a categorical type for efficient memory usage
+action_record_df["episode"] = action_record_df["episode"].astype("category")
+print(action_record_df.head())
+
+## HOW TO RETRIEVE DATA
+# episode_5_action_record = action_record_df[action_record_df["episode"] == 5]
+# sample_time_list = episode_5_action_record["sample_time"].tolist()
+# route_north_list = episode_5_action_record["route_north"].tolist()
+# route_east_list = episode_5_action_record["route_east"].tolist()
+# velocity_list = episode_5_action_record["velocity"].tolist()
+
+last_action_record = action_record_df[action_record_df["episode"] == i_episode]
+sample_time_list = last_action_record["sample time [s]"].to_list()
+route_north_list = last_action_record["route_north [m]"].to_list()
+route_east_list = last_action_record["route_east [m]"].to_list()
+velocity_list = last_action_record["velocity [m/s]"].to_list()
+
+## Store the simulation results in a pandas dataframe
+results_df = pd.DataFrame().from_dict(ship_model.simulation_results)
+print(results_df.head())
 
 # Create a No.1 2x2 grid for subplots
 fig_1, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
 axes = axes.flatten()  # Flatten the 2D array for easier indexing
 
 # Plot 1.1: Ship trajectory with sampled route
-axes[0].plot(results['east position [m]'].to_numpy(), results['north position [m]'].to_numpy())
-axes[0].scatter(auto_pilot.navigate.east, auto_pilot.navigate.north, marker='x', color='green')  # Waypoints
+axes[0].plot(results_df['east position [m]'].to_numpy(), results_df['north position [m]'].to_numpy())
+axes[0].scatter(auto_pilot.navigate.east, auto_pilot.navigate.east, marker='x', color='green')  # Waypoints
 for x, y in zip(ship_model.ship_drawings[1], ship_model.ship_drawings[0]):
     axes[0].plot(x, y, color='black')
 obstacles.plot_obstacle(axes[0])
@@ -396,9 +430,16 @@ axes[0].set_ylabel('North position (m)')
 axes[0].set_aspect('equal')
 
 # Plot 1.2: Sampled Route with the Order
-axes[2].scatter(auto_pilot.navigate.east, auto_pilot.navigate.north, marker='x', color='green')
-for i, (east, north) in enumerate(zip(auto_pilot.navigate.east, auto_pilot.navigate.north)):
-    axes[2].text(east, north, str(i), fontsize=8, ha='right', color='blue')  # Label with index
+axes[2].scatter(auto_pilot.navigate.east, auto_pilot.navigate.east, marker='x', color='green')
+for i, (east, north) in enumerate(zip(auto_pilot.navigate.east, auto_pilot.navigate.east)):
+    if i == 0 or i == len(auto_pilot.navigate.east)-1: 
+        string = str(i)
+    # elif i == 0:
+    #     string = f"{i}, vel={velocity_list[i-1]:.2f} m/s"
+    else:
+        string = f"{i}, vel={velocity_list[i-1]:.2f} m/s, time={sample_time_list[i-1]:.1f} s"
+    
+    axes[2].text(east, north, string, fontsize=8, ha='left', color='blue')  # Label with index
     radius_circle = Circle((east, north), args.radius_of_acceptance, color='red', alpha=0.3, fill=True)
     axes[2].add_patch(radius_circle)
 axes[2].set_title('Sampled Route with the Order')
@@ -406,13 +447,13 @@ axes[2].set_xlabel('East position (m)')
 axes[2].set_ylabel('North position (m)')
 
 # Plot 1.3: Forward Speed
-axes[1].plot(results['forward speed [m/s]'])
+axes[1].plot(results_df['time [s]'], results_df['forward speed [m/s]'])
 axes[1].set_title('Forward Speed [m/s]')
 axes[1].set_xlabel('Time (s)')
 axes[1].set_ylabel('Forward Speed (m/s)')
 
 # Plot 1.4: Heading error
-axes[3].plot(results['heading error [deg]'])
+axes[3].plot(results_df['time [s]'], results_df['heading error [deg]'])
 axes[3].set_title('Heading Error [deg]')
 axes[3].set_xlabel('Time (s)')
 axes[3].set_ylabel('Heading error [deg]')
@@ -422,34 +463,34 @@ fig_2, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
 axes = axes.flatten()  # Flatten the 2D array for easier indexing
 
 # Plot 2.1: Propeller Shaft Speed
-axes[0].plot(results['propeller shaft speed [rpm]'])
+axes[0].plot(results_df['time [s]'], results_df['propeller shaft speed [rpm]'])
 axes[0].set_title('Propeller Shaft Speed [rpm]')
 axes[0].set_xlabel('Time (s)')
 axes[0].set_ylabel('Propeller Shaft Speed (rpm)')
 
 # Plot 2.2: Power vs Available Power
-axes[2].plot(results['power me [kw]'], label="Power")
-axes[2].plot(results['available power me [kw]'], label="Available Power")
+axes[2].plot(results_df['time [s]'], results_df['power me [kw]'], label="Power")
+axes[2].plot(results_df['time [s]'], results_df['available power me [kw]'], label="Available Power")
 axes[2].set_title('Power vs Available Power [kw]')
 axes[2].set_xlabel('Time (s)')
 axes[2].set_ylabel('Power (kw)')
 axes[2].legend()
 
 # Plot 2.3: Cross Track error
-axes[1].plot(results['cross track error [m]'])
+axes[1].plot(results_df['time [s]'], results_df['cross track error [m]'])
 axes[1].set_title('Cross Track Error [m]')
 axes[1].set_xlabel('Time (s)')
 axes[1].set_ylabel('Cross track error (m)')
 
 # Plot 2.4: Fuel Consumption
-axes[3].plot(results['fuel consumption [kg]'])
+axes[3].plot(results_df['time [s]'], results_df['fuel consumption [kg]'])
 axes[3].set_title('Fuel Consumption [kg]')
 axes[3].set_xlabel('Time (s)')
 axes[3].set_ylabel('Fuel Consumption (kg)')
 
 
 # print(action_record[1])
-
+# print(times)
 
 # Adjust layout for better spacing
 plt.tight_layout()

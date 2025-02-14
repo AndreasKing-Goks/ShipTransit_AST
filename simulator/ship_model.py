@@ -63,6 +63,10 @@ class BaseShipModel:
             simulation_config: SimulationConfiguration,
             environment_config: EnvironmentConfiguration
     ):
+        self.ship_config = ship_config
+        self.simulation_config = simulation_config
+        self.environment_config = environment_config
+        
         ## INITIAL INTERAL ATTRIBUTES
         self.init_payload = 0.9 * (ship_config.dead_weight_tonnage - ship_config.bunkers)
         self.init_lsw = ship_config.dead_weight_tonnage / ship_config.coefficient_of_deadweight_to_displacement \
@@ -110,9 +114,6 @@ class BaseShipModel:
         self.init_d_forward_speed = 0
         self.init_d_sideways_speed = 0
         self.init_d_yaw_rate = 0
-
-        # Set up integration
-        self.init_int = EulerInt()  # Instantiate the Euler integrator
 
         # Instantiate ship draw plotting
         self.init_draw = ShipDraw()  # Instantiate the ship drawing class
@@ -171,7 +172,7 @@ class BaseShipModel:
         self.d_yaw_rate = self.init_d_yaw_rate
 
         # Set up integration
-        self.int = self.init_int
+        self.int = EulerInt()  # Instantiate the Euler integrator
         self.int.set_dt(simulation_config.integration_step)
         self.int.set_sim_time(simulation_config.simulation_time)
 
@@ -379,10 +380,10 @@ class BaseShipModel:
         self.d_sideways_speed = self.init_d_sideways_speed
         self.d_yaw_rate = self.init_d_yaw_rate
 
-        # # Set up integration
-        # self.int = self.init_int
-        # self.int.set_dt(simulation_config.integration_step)
-        # self.int.set_sim_time(simulation_config.simulation_time)
+        # Set up integration
+        self.int = EulerInt()  # Instantiate the Euler integrator
+        self.int.set_dt(self.simulation_config.integration_step)
+        self.int.set_sim_time(self.simulation_config.simulation_time)
 
         # Instantiate ship draw plotting
         self.draw = self.init_draw
