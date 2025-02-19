@@ -377,10 +377,10 @@ for i_episode in itertools.count(1):
     # print(np.array(auto_pilot.navigate.east))
 
     
-    # if i_episode == 2:
-    #     # print(ship_model.simulation_results['power me [kw]'])
-    #     # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
-    #     break
+    if i_episode == 2:
+        # print(ship_model.simulation_results['power me [kw]'])
+        # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
+        break
 
 ## Convert action_record to data frame
 all_action_record = []
