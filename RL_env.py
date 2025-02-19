@@ -118,6 +118,7 @@ class ShipRLEnv(Env):
         
         # Update and integrate differential equations for current time step
         self.ship_model.store_simulation_data(throttle, 
+                                              rudder_angle,
                                               self.auto_pilot.get_cross_track_error(),
                                               self.auto_pilot.get_heading_error())
         self.ship_model.update_differentials(engine_throttle=throttle, rudder_angle=rudder_angle)

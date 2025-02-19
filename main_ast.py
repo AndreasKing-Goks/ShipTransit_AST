@@ -377,13 +377,15 @@ for i_episode in itertools.count(1):
     # print(np.array(auto_pilot.navigate.east))
 
     
-    if i_episode == 2:
+    if i_episode == 10:
         # print(ship_model.simulation_results['power me [kw]'])
         # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
         break
 
 ## Convert action_record to data frame
 all_action_record = []
+
+print(len(memory))
 
 for episode, data in action_record.items():
     ep_action_record_df = pd.DataFrame(data, columns=["sample time [s]", "route_north [m]", "route_east [m]", "velocity [m/s]"])
@@ -453,10 +455,10 @@ axes[1].set_xlabel('Time (s)')
 axes[1].set_ylabel('Forward Speed (m/s)')
 
 # Plot 1.4: Heading error
-axes[3].plot(results_df['time [s]'], results_df['heading error [deg]'])
-axes[3].set_title('Heading Error [deg]')
+axes[3].plot(results_df['time [s]'], results_df['rudder angle [deg]'])
+axes[3].set_title('Rudder angle [deg]')
 axes[3].set_xlabel('Time (s)')
-axes[3].set_ylabel('Heading error [deg]')
+axes[3].set_ylabel('Rudder angle [deg]')
 
 # Create a No.2 2x2 grid for subplots
 fig_2, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
