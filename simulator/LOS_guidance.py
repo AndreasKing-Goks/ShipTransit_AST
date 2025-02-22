@@ -135,7 +135,6 @@ class NavigationSystem:
         
         self.load_waypoints(self.route)
     
-
 class StaticObstacle:
     ''' This class is used to define a static obstacle. It can only make
         circular obstacles. The class is instantiated with the following

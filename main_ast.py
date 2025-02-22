@@ -281,6 +281,8 @@ for i_episode in itertools.count(1):
                                          init=init,
                                          mode=1) # Policy based sampling
             
+        print(np.shape(np.array(action)))
+            
         ## STORE SAMPLED ACTION
         if sample_flag:
             sampled_action_info = np.insert(action, 0, RL_env.ship_model.int.time) # time is not reset here
@@ -298,7 +300,7 @@ for i_episode in itertools.count(1):
                 writer.add_scalar('loss/policy', policy_loss, updates)
                 writer.add_scalar('loss/entropy_loss', ent_loss, updates)
                 writer.add_scalar('entropy_temprature/alpha', alpha, updates)
-                updates += 1   
+                updates += 1  
                         
         # print('here2')            
         next_state, reward, done, status = RL_env.step(action, sample_flag)
