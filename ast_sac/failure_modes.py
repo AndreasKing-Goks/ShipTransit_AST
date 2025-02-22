@@ -14,8 +14,16 @@ def isMechanicalFailure(measured_shaft_rpm):
 
 def isNavigationFailure(e_ct):
     ## Ship deviates off the course beyond tolerance
-    e_tolerance = 250
+    e_tolerance = 1000
     return np.abs(e_ct) > e_tolerance
+
+def isHitMapHorizon(pos):
+    n_ship, e_ship, _ = pos
+    
+    north_horizon = [-100, 10100]
+    east_horizon = [-100, 10100]
+    
+    return n_ship < north_horizon[0] or n_ship > north_horizon[1] or e_ship < east_horizon[0] or e_ship > east_horizon[1]
 
 def isBeachingFailure(pos,
                       obstacle:StaticObstacle): # Pos = [n_pos, e_pos]

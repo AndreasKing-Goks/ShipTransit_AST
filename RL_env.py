@@ -54,10 +54,16 @@ class ShipRLEnv(Env):
             high = np.array([1000, 1000, np.pi, 25, 3000, 100, 2000], dtype=np.float32),
         )
         
-        # Define action space [route_point_n, route_point_e, desired_speed]
+        # # Define action space [route_point_n, route_point_e, desired_speed]
+        # self.action_space = Box(
+        #     low = np.array([-1000, -1000, 5], dtype=np.float32),
+        #     high = np.array([1000, 1000, 8], dtype=np.float32),
+        # )
+        
+        # Define action space [route_point_shift, desired_speed]
         self.action_space = Box(
-            low = np.array([-200, -200, 5], dtype=np.float32),
-            high = np.array([200, 200, 8], dtype=np.float32),
+            low = np.array([-10000/np.sqrt(2), 5], dtype=np.float32),
+            high = np.array([1000/np.sqrt(2), 8], dtype=np.float32),
         )
         
         # Define initial state

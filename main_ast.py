@@ -53,7 +53,7 @@ parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, meta
                     help='Automaically adjust α (default: False)')
 
 # Neural networks parameters
-parser.add_argument('--seed', type=int, default=433, metavar='Q',
+parser.add_argument('--seed', type=int, default=25450, metavar='Q',
                     help='random seed (default: 123456)')
 parser.add_argument('--batch_size', type=int, default=64, metavar='Q',
                     help='batch size (default: 256)')
@@ -85,10 +85,10 @@ parser.add_argument('--num_scoring_episodes', type=int, default=20, metavar='N',
                     help='Number of episode for learning performance assesment(default: 20)')
 
 # Others
-parser.add_argument('--radius_of_acceptance', type=int, default=100, metavar='O',
+parser.add_argument('--radius_of_acceptance', type=int, default=600, metavar='O',
                     help='Radius of acceptance for LOS algorithm(default: 600)')
-parser.add_argument('--lookahead_distance', type=int, default=50, metavar='O',
-                    help='Lookahead distance for LOS algorithm(default: 600)')
+parser.add_argument('--lookahead_distance', type=int, default=450, metavar='O',
+                    help='Lookahead distance for LOS algorithm(default: 450)')
 
 args = parser.parse_args()
 
@@ -270,16 +270,18 @@ for i_episode in itertools.count(1):
             init = False
         
         if args.start_steps > total_numsteps:
-            action, sample_flag = agent.select_action_lastpos(state,
+            action, sample_flag = agent.select_action_segment_V2(state,
                                          done,
                                          init=init,
                                          mode=0) # Random sampling 
             
         else:
-            action, sample_flag = agent.select_action_lastpos(state, 
+            action, sample_flag = agent.select_action_segment_V2(state, 
                                          done,
                                          init=init,
                                          mode=1) # Policy based sampling
+            
+        print(np.shape(np.array(action)))
             
         ## STORE SAMPLED ACTION
         if sample_flag:
@@ -309,11 +311,6 @@ for i_episode in itertools.count(1):
         # Ignore the "done" signal if it comes from hitting the time horizon
         mask = 1 if episode_steps == args.num_steps_episode else float(not done)
         
-        # # ONLY FOR TRAINING, WHEN EPISODE STEPS IS LIMITED
-        # # Limit the simulator stepping to avoid infinite recursion for debugging
-        # if episode_steps > args.num_steps_episode:
-        #     break
-    
         # Push the transtition to memory
         memory.push(state, action, reward, next_state, mask)
     
@@ -346,7 +343,7 @@ for i_episode in itertools.count(1):
                 else:
                     init_eval = False
                     
-                action, sample_flag = agent.select_action_lastpos(state, 
+                action, sample_flag = agent.select_action_segment_V2(state, 
                                          done,
                                          init=init_eval,
                                          mode=2) # Policy based sampling
@@ -377,7 +374,7 @@ for i_episode in itertools.count(1):
     # print(np.array(auto_pilot.navigate.east))
 
     
-    if i_episode == 10:
+    if i_episode == 1:
         # print(ship_model.simulation_results['power me [kw]'])
         # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
         break
@@ -397,7 +394,7 @@ action_record_df = pd.concat(all_action_record, ignore_index=True)
 
 # Convert episode to a categorical type for efficient memory usage
 action_record_df["episode"] = action_record_df["episode"].astype("category")
-print(action_record_df.head())
+# print(action_record_df.head())
 
 ## HOW TO RETRIEVE DATA
 # episode_5_action_record = action_record_df[action_record_df["episode"] == 5]
@@ -414,7 +411,37 @@ velocity_list = last_action_record["velocity [m/s]"].to_list()
 
 ## Store the simulation results in a pandas dataframe
 results_df = pd.DataFrame().from_dict(ship_model.simulation_results)
-print(results_df.head())
+# print(results_df.head())
+
+# # Create a No.2 2x2 grid for subplots
+# fig_2, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
+# axes = axes.flatten()  # Flatten the 2D array for easier indexing
+
+# # Plot 2.1: Propeller Shaft Speed
+# axes[0].plot(results_df['time [s]'], results_df['propeller shaft speed [rpm]'])
+# axes[0].set_title('Propeller Shaft Speed [rpm]')
+# axes[0].set_xlabel('Time (s)')
+# axes[0].set_ylabel('Propeller Shaft Speed (rpm)')
+
+# # Plot 2.2: Power vs Available Power
+# axes[2].plot(results_df['time [s]'], results_df['power me [kw]'], label="Power")
+# axes[2].plot(results_df['time [s]'], results_df['available power me [kw]'], label="Available Power")
+# axes[2].set_title('Power vs Available Power [kw]')
+# axes[2].set_xlabel('Time (s)')
+# axes[2].set_ylabel('Power (kw)')
+# axes[2].legend()
+
+# # Plot 2.3: Cross Track error
+# axes[1].plot(results_df['time [s]'], results_df['cross track error [m]'])
+# axes[1].set_title('Cross Track Error [m]')
+# axes[1].set_xlabel('Time (s)')
+# axes[1].set_ylabel('Cross track error (m)')
+
+# # Plot 2.4: Fuel Consumption
+# axes[3].plot(results_df['time [s]'], results_df['fuel consumption [kg]'])
+# axes[3].set_title('Fuel Consumption [kg]')
+# axes[3].set_xlabel('Time (s)')
+# axes[3].set_ylabel('Fuel Consumption (kg)')
 
 # Create a No.1 2x2 grid for subplots
 fig_1, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
@@ -459,36 +486,6 @@ axes[3].plot(results_df['time [s]'], results_df['rudder angle [deg]'])
 axes[3].set_title('Rudder angle [deg]')
 axes[3].set_xlabel('Time (s)')
 axes[3].set_ylabel('Rudder angle [deg]')
-
-# Create a No.2 2x2 grid for subplots
-fig_2, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
-axes = axes.flatten()  # Flatten the 2D array for easier indexing
-
-# Plot 2.1: Propeller Shaft Speed
-axes[0].plot(results_df['time [s]'], results_df['propeller shaft speed [rpm]'])
-axes[0].set_title('Propeller Shaft Speed [rpm]')
-axes[0].set_xlabel('Time (s)')
-axes[0].set_ylabel('Propeller Shaft Speed (rpm)')
-
-# Plot 2.2: Power vs Available Power
-axes[2].plot(results_df['time [s]'], results_df['power me [kw]'], label="Power")
-axes[2].plot(results_df['time [s]'], results_df['available power me [kw]'], label="Available Power")
-axes[2].set_title('Power vs Available Power [kw]')
-axes[2].set_xlabel('Time (s)')
-axes[2].set_ylabel('Power (kw)')
-axes[2].legend()
-
-# Plot 2.3: Cross Track error
-axes[1].plot(results_df['time [s]'], results_df['cross track error [m]'])
-axes[1].set_title('Cross Track Error [m]')
-axes[1].set_xlabel('Time (s)')
-axes[1].set_ylabel('Cross track error (m)')
-
-# Plot 2.4: Fuel Consumption
-axes[3].plot(results_df['time [s]'], results_df['fuel consumption [kg]'])
-axes[3].set_title('Fuel Consumption [kg]')
-axes[3].set_xlabel('Time (s)')
-axes[3].set_ylabel('Fuel Consumption (kg)')
 
 
 # print(action_record[1])
