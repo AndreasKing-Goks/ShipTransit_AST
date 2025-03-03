@@ -224,10 +224,13 @@ RL_env = ShipRLEnv(
 )
 
 # # Pseudorandom seeding
-# RL_env.seed(args.seed)
-# RL_env.action_space.seed(args.seed)
-# torch.manual_seed(args.seed)
-# np.random.seed(args.seed)
+random_seed = False
+# random_seed = True
+if random_seed:
+    RL_env.seed(args.seed)
+    RL_env.action_space.seed(args.seed)
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
 
 # Agent
 agent = SAC(RL_env, args)
@@ -270,23 +273,20 @@ for i_episode in itertools.count(1):
             init = False
         
         if args.start_steps > total_numsteps:
-            action, sample_flag = agent.select_action_segment_V2(state,
-                                         done,
-                                         init=init,
-                                         mode=0) # Random sampling 
+            action, action_to_simu_input, sampling_time_record = agent.select_action(state,
+                                                                                    done,
+                                                                                    init=init,
+                                                                                    mode=0) # Random sampling 
             
         else:
-            action, sample_flag = agent.select_action_segment_V2(state, 
-                                         done,
-                                         init=init,
-                                         mode=1) # Policy based sampling
-            
-        print(np.shape(np.array(action)))
+            action, action_to_simu_input, sampling_time_record = agent.select_action(state, 
+                                                                                    done,
+                                                                                    init=init,
+                                                                                    mode=1) # Policy based sampling
             
         ## STORE SAMPLED ACTION
-        if sample_flag:
+        if action_to_simu_input:
             sampled_action_info = np.insert(action, 0, RL_env.ship_model.int.time) # time is not reset here
-            # print(i_episode)
             action_record[i_episode].append(sampled_action_info)
 
         if len(memory) > args.batch_size:
@@ -295,15 +295,20 @@ for i_episode in itertools.count(1):
                 # Update parameters of all the networks
                 critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
                 
-                writer.add_scalar('loss/critic_1', critic_1_loss, updates)
-                writer.add_scalar('loss/critic_2', critic_2_loss, updates)
-                writer.add_scalar('loss/policy', policy_loss, updates)
-                writer.add_scalar('loss/entropy_loss', ent_loss, updates)
-                writer.add_scalar('entropy_temprature/alpha', alpha, updates)
+                # writer.add_scalar('loss/critic_1', critic_1_loss, updates)
+                # writer.add_scalar('loss/critic_2', critic_2_loss, updates)
+                # writer.add_scalar('loss/policy', policy_loss, updates)
+                # writer.add_scalar('loss/entropy_loss', ent_loss, updates)
+                # writer.add_scalar('entropy_temprature/alpha', alpha, updates)
                 updates += 1   
                         
-        # print('here2')            
-        next_state, reward, done, status = RL_env.step(action, sample_flag)
+        # Convert action to simulation input
+        simu_input = agent.convert_action_to_simu_input(action)
+                    
+        # Step up the simulation
+        next_state, reward, done, status = RL_env.step(simu_input, 
+                                                       action_to_simu_input, 
+                                                       sampling_time_record)
         episode_steps += 1
         total_numsteps += 1
         episode_reward += reward
@@ -312,6 +317,8 @@ for i_episode in itertools.count(1):
         mask = 1 if episode_steps == args.num_steps_episode else float(not done)
         
         # Push the transtition to memory
+        ###OBS####
+        # Input action inside memory
         memory.push(state, action, reward, next_state, mask)
     
         # Set the next state as current state for the next step
@@ -325,7 +332,7 @@ for i_episode in itertools.count(1):
     if total_numsteps > args.num_steps:
         break
 
-    writer.add_scalar('reward/train', reward, i_episode)
+    # writer.add_scalar('reward/train', reward, i_episode)
     print("Episode: {}, Total numsteps: {}, Episode steps: {}, Reward: {}, Status:{}".\
         format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2), status))
     
@@ -343,12 +350,14 @@ for i_episode in itertools.count(1):
                 else:
                     init_eval = False
                     
-                action, sample_flag = agent.select_action_segment_V2(state, 
-                                         done,
-                                         init=init_eval,
-                                         mode=2) # Policy based sampling
+                action, action_to_simu_input, sampling_time_record = agent.select_action(state, 
+                                                                                        done,
+                                                                                        init=init_eval,
+                                                                                        mode=2) # Policy based sampling
                 
-                next_state, reward, done, _ = RL_env.step(action, sample_flag)
+                next_state, reward, done, _ = RL_env.step(action, 
+                                                          action_to_simu_input,
+                                                          sampling_time_record)
                 episode_reward += reward
                 
                 state = next_state
@@ -364,7 +373,7 @@ for i_episode in itertools.count(1):
         avg_reward /= args.num_scoring_episodes
         testing_count += 1
         
-        writer.add_scalar('avg_reward/test', avg_reward, i_episode)
+        # writer.add_scalar('avg_reward/test', avg_reward, i_episode)
         
         print("----------------------------------------")
         print("Test Number: {}, Avg. Reward: {}".format(testing_count, round(avg_reward, 2)))
@@ -374,124 +383,124 @@ for i_episode in itertools.count(1):
     # print(np.array(auto_pilot.navigate.east))
 
     
-    if i_episode == 1:
-        # print(ship_model.simulation_results['power me [kw]'])
-        # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
-        break
+    # if i_episode == 1:
+    #     # print(ship_model.simulation_results['power me [kw]'])
+    #     # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
+    #     break
 
-## Convert action_record to data frame
-all_action_record = []
+# ## Convert action_record to data frame
+# all_action_record = []
 
-print(len(memory))
+# print(len(memory))
 
-for episode, data in action_record.items():
-    ep_action_record_df = pd.DataFrame(data, columns=["sample time [s]", "route_north [m]", "route_east [m]", "velocity [m/s]"])
-    ep_action_record_df["episode"] = episode
-    all_action_record.append(ep_action_record_df)
+# for episode, data in action_record.items():
+#     ep_action_record_df = pd.DataFrame(data, columns=["sample time [s]", "route_north [m]", "route_east [m]", "velocity [m/s]"])
+#     ep_action_record_df["episode"] = episode
+#     all_action_record.append(ep_action_record_df)
 
-# Concatenate all episodes into one large DataFrame
-action_record_df = pd.concat(all_action_record, ignore_index=True)   
+# # Concatenate all episodes into one large DataFrame
+# action_record_df = pd.concat(all_action_record, ignore_index=True)   
 
-# Convert episode to a categorical type for efficient memory usage
-action_record_df["episode"] = action_record_df["episode"].astype("category")
-# print(action_record_df.head())
+# # Convert episode to a categorical type for efficient memory usage
+# action_record_df["episode"] = action_record_df["episode"].astype("category")
+# # print(action_record_df.head())
 
-## HOW TO RETRIEVE DATA
-# episode_5_action_record = action_record_df[action_record_df["episode"] == 5]
-# sample_time_list = episode_5_action_record["sample_time"].tolist()
-# route_north_list = episode_5_action_record["route_north"].tolist()
-# route_east_list = episode_5_action_record["route_east"].tolist()
-# velocity_list = episode_5_action_record["velocity"].tolist()
+# ## HOW TO RETRIEVE DATA
+# # episode_5_action_record = action_record_df[action_record_df["episode"] == 5]
+# # sample_time_list = episode_5_action_record["sample_time"].tolist()
+# # route_north_list = episode_5_action_record["route_north"].tolist()
+# # route_east_list = episode_5_action_record["route_east"].tolist()
+# # velocity_list = episode_5_action_record["velocity"].tolist()
 
-last_action_record = action_record_df[action_record_df["episode"] == i_episode]
-sample_time_list = last_action_record["sample time [s]"].to_list()
-route_north_list = last_action_record["route_north [m]"].to_list()
-route_east_list = last_action_record["route_east [m]"].to_list()
-velocity_list = last_action_record["velocity [m/s]"].to_list()
+# last_action_record = action_record_df[action_record_df["episode"] == i_episode]
+# sample_time_list = last_action_record["sample time [s]"].to_list()
+# route_north_list = last_action_record["route_north [m]"].to_list()
+# route_east_list = last_action_record["route_east [m]"].to_list()
+# velocity_list = last_action_record["velocity [m/s]"].to_list()
 
-## Store the simulation results in a pandas dataframe
-results_df = pd.DataFrame().from_dict(ship_model.simulation_results)
-# print(results_df.head())
+# ## Store the simulation results in a pandas dataframe
+# results_df = pd.DataFrame().from_dict(ship_model.simulation_results)
+# # print(results_df.head())
 
-# # Create a No.2 2x2 grid for subplots
-# fig_2, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
+# # # Create a No.2 2x2 grid for subplots
+# # fig_2, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
+# # axes = axes.flatten()  # Flatten the 2D array for easier indexing
+
+# # # Plot 2.1: Propeller Shaft Speed
+# # axes[0].plot(results_df['time [s]'], results_df['propeller shaft speed [rpm]'])
+# # axes[0].set_title('Propeller Shaft Speed [rpm]')
+# # axes[0].set_xlabel('Time (s)')
+# # axes[0].set_ylabel('Propeller Shaft Speed (rpm)')
+
+# # # Plot 2.2: Power vs Available Power
+# # axes[2].plot(results_df['time [s]'], results_df['power me [kw]'], label="Power")
+# # axes[2].plot(results_df['time [s]'], results_df['available power me [kw]'], label="Available Power")
+# # axes[2].set_title('Power vs Available Power [kw]')
+# # axes[2].set_xlabel('Time (s)')
+# # axes[2].set_ylabel('Power (kw)')
+# # axes[2].legend()
+
+# # # Plot 2.3: Cross Track error
+# # axes[1].plot(results_df['time [s]'], results_df['cross track error [m]'])
+# # axes[1].set_title('Cross Track Error [m]')
+# # axes[1].set_xlabel('Time (s)')
+# # axes[1].set_ylabel('Cross track error (m)')
+
+# # # Plot 2.4: Fuel Consumption
+# # axes[3].plot(results_df['time [s]'], results_df['fuel consumption [kg]'])
+# # axes[3].set_title('Fuel Consumption [kg]')
+# # axes[3].set_xlabel('Time (s)')
+# # axes[3].set_ylabel('Fuel Consumption (kg)')
+
+# # Create a No.1 2x2 grid for subplots
+# fig_1, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
 # axes = axes.flatten()  # Flatten the 2D array for easier indexing
 
-# # Plot 2.1: Propeller Shaft Speed
-# axes[0].plot(results_df['time [s]'], results_df['propeller shaft speed [rpm]'])
-# axes[0].set_title('Propeller Shaft Speed [rpm]')
-# axes[0].set_xlabel('Time (s)')
-# axes[0].set_ylabel('Propeller Shaft Speed (rpm)')
+# # Plot 1.1: Ship trajectory with sampled route
+# axes[0].plot(results_df['east position [m]'].to_numpy(), results_df['north position [m]'].to_numpy())
+# axes[0].scatter(auto_pilot.navigate.east, auto_pilot.navigate.east, marker='x', color='green')  # Waypoints
+# for x, y in zip(ship_model.ship_drawings[1], ship_model.ship_drawings[0]):
+#     axes[0].plot(x, y, color='black')
+# obstacles.plot_obstacle(axes[0])
+# axes[0].set_title('Ship Trajectory with the Sampled Route')
+# axes[0].set_xlabel('East position (m)')
+# axes[0].set_ylabel('North position (m)')
+# axes[0].set_aspect('equal')
 
-# # Plot 2.2: Power vs Available Power
-# axes[2].plot(results_df['time [s]'], results_df['power me [kw]'], label="Power")
-# axes[2].plot(results_df['time [s]'], results_df['available power me [kw]'], label="Available Power")
-# axes[2].set_title('Power vs Available Power [kw]')
-# axes[2].set_xlabel('Time (s)')
-# axes[2].set_ylabel('Power (kw)')
-# axes[2].legend()
-
-# # Plot 2.3: Cross Track error
-# axes[1].plot(results_df['time [s]'], results_df['cross track error [m]'])
-# axes[1].set_title('Cross Track Error [m]')
-# axes[1].set_xlabel('Time (s)')
-# axes[1].set_ylabel('Cross track error (m)')
-
-# # Plot 2.4: Fuel Consumption
-# axes[3].plot(results_df['time [s]'], results_df['fuel consumption [kg]'])
-# axes[3].set_title('Fuel Consumption [kg]')
-# axes[3].set_xlabel('Time (s)')
-# axes[3].set_ylabel('Fuel Consumption (kg)')
-
-# Create a No.1 2x2 grid for subplots
-fig_1, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
-axes = axes.flatten()  # Flatten the 2D array for easier indexing
-
-# Plot 1.1: Ship trajectory with sampled route
-axes[0].plot(results_df['east position [m]'].to_numpy(), results_df['north position [m]'].to_numpy())
-axes[0].scatter(auto_pilot.navigate.east, auto_pilot.navigate.east, marker='x', color='green')  # Waypoints
-for x, y in zip(ship_model.ship_drawings[1], ship_model.ship_drawings[0]):
-    axes[0].plot(x, y, color='black')
-obstacles.plot_obstacle(axes[0])
-axes[0].set_title('Ship Trajectory with the Sampled Route')
-axes[0].set_xlabel('East position (m)')
-axes[0].set_ylabel('North position (m)')
-axes[0].set_aspect('equal')
-
-# Plot 1.2: Sampled Route with the Order
-axes[2].scatter(auto_pilot.navigate.east, auto_pilot.navigate.east, marker='x', color='green')
-for i, (east, north) in enumerate(zip(auto_pilot.navigate.east, auto_pilot.navigate.east)):
-    if i == 0 or i == len(auto_pilot.navigate.east)-1: 
-        string = str(i)
-    # elif i == 0:
-    #     string = f"{i}, vel={velocity_list[i-1]:.2f} m/s"
-    else:
-        string = f"{i}, vel={velocity_list[i-1]:.2f} m/s, time={sample_time_list[i-1]:.1f} s"
+# # Plot 1.2: Sampled Route with the Order
+# axes[2].scatter(auto_pilot.navigate.east, auto_pilot.navigate.east, marker='x', color='green')
+# for i, (east, north) in enumerate(zip(auto_pilot.navigate.east, auto_pilot.navigate.east)):
+#     if i == 0 or i == len(auto_pilot.navigate.east)-1: 
+#         string = str(i)
+#     # elif i == 0:
+#     #     string = f"{i}, vel={velocity_list[i-1]:.2f} m/s"
+#     else:
+#         string = f"{i}, vel={velocity_list[i-1]:.2f} m/s, time={sample_time_list[i-1]:.1f} s"
     
-    axes[2].text(east, north, string, fontsize=8, ha='left', color='blue')  # Label with index
-    radius_circle = Circle((east, north), args.radius_of_acceptance, color='red', alpha=0.3, fill=True)
-    axes[2].add_patch(radius_circle)
-axes[2].set_title('Sampled Route with the Order')
-axes[2].set_xlabel('East position (m)')
-axes[2].set_ylabel('North position (m)')
+#     axes[2].text(east, north, string, fontsize=8, ha='left', color='blue')  # Label with index
+#     radius_circle = Circle((east, north), args.radius_of_acceptance, color='red', alpha=0.3, fill=True)
+#     axes[2].add_patch(radius_circle)
+# axes[2].set_title('Sampled Route with the Order')
+# axes[2].set_xlabel('East position (m)')
+# axes[2].set_ylabel('North position (m)')
 
-# Plot 1.3: Forward Speed
-axes[1].plot(results_df['time [s]'], results_df['forward speed [m/s]'])
-axes[1].set_title('Forward Speed [m/s]')
-axes[1].set_xlabel('Time (s)')
-axes[1].set_ylabel('Forward Speed (m/s)')
+# # Plot 1.3: Forward Speed
+# axes[1].plot(results_df['time [s]'], results_df['forward speed [m/s]'])
+# axes[1].set_title('Forward Speed [m/s]')
+# axes[1].set_xlabel('Time (s)')
+# axes[1].set_ylabel('Forward Speed (m/s)')
 
-# Plot 1.4: Heading error
-axes[3].plot(results_df['time [s]'], results_df['rudder angle [deg]'])
-axes[3].set_title('Rudder angle [deg]')
-axes[3].set_xlabel('Time (s)')
-axes[3].set_ylabel('Rudder angle [deg]')
+# # Plot 1.4: Heading error
+# axes[3].plot(results_df['time [s]'], results_df['rudder angle [deg]'])
+# axes[3].set_title('Rudder angle [deg]')
+# axes[3].set_xlabel('Time (s)')
+# axes[3].set_ylabel('Rudder angle [deg]')
 
 
-# print(action_record[1])
-# print(times)
+# # print(action_record[1])
+# # print(times)
 
-# Adjust layout for better spacing
-plt.tight_layout()
-plt.show()
+# # Adjust layout for better spacing
+# plt.tight_layout()
+# plt.show()
 

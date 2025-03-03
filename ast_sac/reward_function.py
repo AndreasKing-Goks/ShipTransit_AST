@@ -97,7 +97,12 @@ def terminal_state(measured_shaft_rpm,
         
     return reward_terminal, done, status
         
-def reward_function(pos, heading_error, measured_shaft_rpm, los_ct_error, engine_load, av_engine_load, auto_pilot, obstacles):
+def reward_function(pos, 
+                    heading_error, 
+                    measured_shaft_rpm, 
+                    los_ct_error, 
+                    engine_load, 
+                    av_engine_load, auto_pilot, obstacles):
     
     # Compute non terminal state reward
     reward_non_terminal = non_terminal_state(pos)
