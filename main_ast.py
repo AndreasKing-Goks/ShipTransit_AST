@@ -345,7 +345,7 @@ for i_episode in itertools.count(1):
             episode_steps_eval = 0
             done = False
             while not done:
-                if episode_steps_eval < 1:
+                if episode_steps_eval == 0:
                     init_eval = True
                 else:
                     init_eval = False
@@ -355,20 +355,36 @@ for i_episode in itertools.count(1):
                                                                                         init=init_eval,
                                                                                         mode=2) # Policy based sampling
                 
-                next_state, reward, done, _ = RL_env.step(action, 
+                # Convert action to simulation input
+                simu_input = agent.convert_action_to_simu_input(action)
+                # print("Episode ", i_episode, ", Step", episode_steps_eval)
+                # print("simu_input =",simu_input)
+                # print("action_to_simu_input =",action_to_simu_input)
+                # debug = True
+                
+                next_state, reward, done, _ = RL_env.step(simu_input, 
                                                           action_to_simu_input,
                                                           sampling_time_record)
+                # print("Done =", done)
+                # print("#################")
+                
                 episode_reward += reward
                 
                 state = next_state
                 
                 episode_steps_eval += 1
                 
-                # Limit the simulator stepping to avoid infinite recursion for debugging
-                if episode_steps_eval > args.num_steps_episode:
-                    break
-                
+                # # Limit the simulator stepping to avoid infinite recursion for debugging
+                # if episode_steps_eval > args.num_steps_episode:
+                #     break
+            
             avg_reward += episode_reward
+            
+            # If we reach done=True, not only we stop the while-done loop, but also the for-episode
+            # loop because the assessment is already complete within the allowed evaluation episode
+            # bracket
+            if done:
+                break
             
         avg_reward /= args.num_scoring_episodes
         testing_count += 1

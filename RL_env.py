@@ -107,15 +107,24 @@ class ShipRLEnv(Env):
     def step(self, 
              simu_input, 
              action_to_simu_input,
-             sampling_time_record):       
+             sampling_time_record,
+             debug=False):       
         # Measure ship position and speed
         north_position = self.ship_model.north
         east_position = self.ship_model.east
         heading = self.ship_model.yaw_angle
         forward_speed = self.ship_model.forward_speed
         
+        if debug:
+            print("---------------")
+            print('Debug Mode 1')
+            print("Previous route coordinate =",self.prev_route_coordinate)
+            print("---------------")
+        
         if action_to_simu_input:
             # Unpack simulation input
+            # if len(simu_input) != 3:
+            #     print(f" Debug: Invalid simu_input = {simu_input}, length = {len(simu_input)}")
             route_coord_n, route_coord_e, desired_forward_speed = simu_input
         
             # Update route_point based on the action
@@ -130,6 +139,11 @@ class ShipRLEnv(Env):
         
         # If it is not the time to use action as simulation input, use saved route coordinate
         else:
+            if debug:
+                print("---------------")
+                print('Debug Mode 2')
+                print("Previous route coordinate =",self.prev_route_coordinate)
+                print("---------------")
             route_coordinate = self.prev_route_coordinate
         
         # Find appropriate rudder angle and engine throttle
@@ -310,7 +324,8 @@ class ShipRLEnv(Env):
         done = False
         
         n_pos, e_pos, _ = pos
-        # print (route_coordinate)
+        
+        # print(route_coordinate)
         n_route, e_route = route_coordinate
         
         ## Reward for reaching the end point

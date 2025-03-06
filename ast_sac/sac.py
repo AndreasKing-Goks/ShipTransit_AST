@@ -81,6 +81,8 @@ class SAC(object):
         # Transform the state array to tensor
         state = torch.FloatTensor(state).to(self.device).unsqueeze(0)
 
+        action_to_simu_input = False
+        
         if not self.stop_sampling:
 
             # Compute traveled distance
@@ -152,7 +154,6 @@ class SAC(object):
         ## Return last known action because no sampling occurred
         # Keep recording the time
         action = self.last_action
-        action_to_simu_input = False
         self.time_record += self.env.ship_model.int.dt
         
         sampling_time_record = self.time_record
