@@ -166,12 +166,17 @@ class SAC(object):
         route_shift, desired_forward_speed = action
         
         # Check sign and magnitude
-        sign = np.sign(route_shift)
         route_shift_mg = np.abs(route_shift)
         
-        # Add segment
-        route_coord_n = route_shift_mg * np.sin(self.AB_beta) + self.segment_AB * self.sampling_count
-        route_coord_e = sign*(route_shift_mg * np.cos(self.AB_beta)) + self.segment_AB * self.sampling_count
+        ## Add segment
+        # If route shift negative (shifting to the right)
+        if route_shift < 0:
+            route_coord_n = (self.segment_AB_north * self.sampling_count) + (route_shift_mg * np.cos(self.AB_beta))
+            route_coord_e = (self.segment_AB_east * self.sampling_count) - (route_shift_mg * np.sin(self.AB_beta))
+        # If route shift positive (shifting to the left)
+        else:
+            route_coord_n = (self.segment_AB_north * self.sampling_count) - (route_shift_mg * np.cos(self.AB_beta))
+            route_coord_e = (self.segment_AB_east * self.sampling_count) + (route_shift_mg * np.sin(self.AB_beta))
         
         # Repack into simulation input
         simu_input = [route_coord_n, route_coord_e, desired_forward_speed]

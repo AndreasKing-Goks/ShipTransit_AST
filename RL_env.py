@@ -50,8 +50,8 @@ class ShipRLEnv(Env):
         
         # Define observation space [n_pos, e_pos, headings, forward speed, shaft_speed, los_e_ct, power_load] (7 states)
         self.observation_space = Box(
-            low = np.array([-1000, -1000, -np.pi, -25, -3000, 0, 0], dtype=np.float32),
-            high = np.array([1000, 1000, np.pi, 25, 3000, 100, 2000], dtype=np.float32),
+            low = np.array([0, 0, -np.pi, -25, -3000, 0, 0], dtype=np.float32),
+            high = np.array([10000, 10000, np.pi, 25, 3000, 100, 2000], dtype=np.float32),
         )
         
         # # Define action space [route_point_n, route_point_e, desired_speed]
@@ -63,7 +63,7 @@ class ShipRLEnv(Env):
         # Define action space [route_point_shift, desired_speed]
         self.action_space = Box(
             low = np.array([-10000/np.sqrt(2), 5], dtype=np.float32),
-            high = np.array([1000/np.sqrt(2), 8], dtype=np.float32),
+            high = np.array([10000/np.sqrt(2), 8], dtype=np.float32),
         )
         
         # Define initial state
@@ -339,54 +339,54 @@ class ShipRLEnv(Env):
         if relative_dist <= arrival_radius:
             reward_terminal += 1000
             done = True
-            status += " Reach endpoint "
+            status += "|Reach endpoint|"
             
         ## Reward for ship hitting map horizon
         # print(pos)
         if self.is_pos_outside_horizon(n_pos, e_pos):
             reward_terminal += -1000
             done = True
-            status += " Map horizon hit failure "
+            status += "|Map horizon hit failure|"
                     
         ## Reward for ship hitting obstacles
         if self.is_pos_inside_obstacles(n_pos, e_pos):
             reward_terminal += -1000
             done = True
-            status += " Collision failure "
+            status += "|Collision failure|"
             
         ## Reward for route action sampled inside obstacles or outside map horizon
         if self.is_pos_outside_horizon(n_route, e_route) or\
             self.is_pos_inside_obstacles(n_route, e_route):
             reward_terminal += -1000
             done = True
-            status += " Route point sampled in terminal state "
+            status += "|Route point is sampled in terminal state|"
         
         ## Reward for unnecessary slow ship movement
         if self.is_too_slow(recorded_time):
             reward_terminal += -1000
             done = True
-            status += " Slow progress failure "
+            status += "|Slow progress failure|"
         
         ## Reward for Mechanical Failure 
         if self.is_mechanical_failure(measured_shaft_rpm):
             reward_terminal += -1000
             done = True
-            status += " Mechanical failure "
+            status += "|Mechanical failure|"
         
         ## Reward for Navigation Failure    
         if self.is_navigation_failure(los_ct_error):
             reward_terminal += -1000
             done = True
-            status += " Navigation failure "
+            status += "|Navigation failure|"
         
         ## Reward for Blackout Failure    
         if self.is_blackout_failure(power_load, available_power_load):
             reward_terminal += -1000
             done = True
-            status += " Blackout failure "
+            status += "|Blackout failure|"
         
         if done == False:
-            status = " Not in terminal state "
+            status = "|Not in terminal state|"
         
         return reward_terminal, done, status
     
