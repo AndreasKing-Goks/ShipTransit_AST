@@ -12,7 +12,7 @@ class LogMessage:
         self.args = args
         
         # Log file path
-        file_name = f"log_result_{log_ID}.txt"
+        file_name = f"log_result_{log_ID}.log"
         self.log_file_path = os.path.join(log_dir, file_name) 
         
         # Check directory exists
