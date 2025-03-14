@@ -1,0 +1,35 @@
+------------------------------- STRESS TEST PARAMETERS --------------------------------
+* Coefficient and boolean parameters
+ Policy type                                   : Gaussian
+ Do evaluation                                 : True
+ Reward discount factor (gamma)                : 0.99
+ Target smoothing coefficient (tau)            : 0.005
+ Action sampling frequency coefficient (theta) : 1.5
+ Maximum action sampling count per episode     : 4
+ RL learning rate                              : 0.0003
+ SAC's entropy temperature parameters (alpha)  : 0.2
+ Do automatic entroypy tuning                  : False
+
+* Neural networks parameters
+ Set random seed                               : 25450
+ SAC batch size                                : 64
+ SAC replay size                               : 1000
+ SAC hidden network size                       : 256
+ Run training on CUDA                          : False
+
+* Timesteps and episode parameters
+ Simulator time step size                      : 0.5
+ Maximum steps count over all episodes         : 100000
+ Steps count for initial exploration           : 10000
+ Steps count for model update                  : 1
+ Steps count for target update                 : 1
+ Episodes count for evaluation                 : 20
+ Episodes count during evaluation              : 20
+
+* Others
+ Autopilot LOS's radius of acceptance          : 500
+ Autopilot LOS's lookahead distance            : 1000
+
+----------------------------------- TRAINING PHASE ------------------------------------
+
+Episode: 1  , Total numsteps: 3537  , Episode steps: 3537 , Reward: 3523.39 , Status: |Slow progress failure|

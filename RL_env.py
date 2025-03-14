@@ -60,10 +60,16 @@ class ShipRLEnv(Env):
         #     high = np.array([1000, 1000, 8], dtype=np.float32),
         # )
         
+        # # Define action space [route_point_shift, desired_speed]
+        # self.action_space = Box(
+        #     low = np.array([-10000/np.sqrt(2), 0], dtype=np.float32),
+        #     high = np.array([10000/np.sqrt(2), 8], dtype=np.float32),
+        # )
+        
         # Define action space [route_point_shift, desired_speed]
         self.action_space = Box(
-            low = np.array([-10000/np.sqrt(2), 0], dtype=np.float32),
-            high = np.array([10000/np.sqrt(2), 8], dtype=np.float32),
+            low = np.array([-np.pi/6, 0], dtype=np.float32),
+            high = np.array([np.pi/6, 8], dtype=np.float32),
         )
         
         # Define initial state
@@ -77,13 +83,14 @@ class ShipRLEnv(Env):
         self.seed()
         
         # Reward Function parameters
-        self.e_tolerance = 250
+        self.e_tolerance = 1000
         AB_distance_n = self.auto_pilot.navigate.north[-1] - self.auto_pilot.navigate.north[0]
         AB_distance_e = self.auto_pilot.navigate.east[-1] - self.auto_pilot.navigate.east[0]
         self.AB_distance = np.sqrt(AB_distance_n ** 2 + AB_distance_e ** 2)
         self.AB_alpha = np.arctan2(AB_distance_e, AB_distance_n)
         self.AB_beta = np.pi/2 - self.AB_alpha 
         self.prev_route_coordinate = None
+        
     
     def reset(self):
         # Reset the simulator and the list

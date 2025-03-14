@@ -71,10 +71,17 @@ class SAC(object):
         self.last_route_point_east = 0
         self.last_desired_forward_speed = self.env.expected_forward_speed
         
+        self.omega = np.pi/2 - self.AB_beta 
+        
+        self.x_s = 0
+        self.y_s = 0
+        self.x_base = self.segment_AB_north
+        self.y_base = self.segment_AB_north
+        
         self.time_record = 0
         
         self.stop_sampling = False
-                    
+
     def select_action(self, state, done: bool, init: bool, mode: int):
         
         # Compute action based on mode
@@ -160,35 +167,71 @@ class SAC(object):
         
         return action, action_to_simu_input, sampling_time_record
     
+    
     def convert_action_to_simu_input(self, 
                                      action):
         # Unpack action
-        route_shift, desired_forward_speed = action
+        chi, desired_forward_speed = action
         
-        # Check sign and magnitude
-        route_shift_mg = np.abs(route_shift)
+        # Compute x_s and _y_s
+        l_s = np.abs(self.segment_AB * np.tan(chi))
+        self.x_s = l_s * np.cos(self.omega)
+        self.y_s = l_s * np.sin(self.omega)
         
-        ## Add segment
-        # If route shift negative (shifting to the right)
-        if route_shift < 0:
-            route_coord_n = (self.segment_AB_north * self.sampling_count) + (route_shift_mg * np.cos(self.AB_beta))
-            route_coord_e = (self.segment_AB_east * self.sampling_count) - (route_shift_mg * np.sin(self.AB_beta))
-        # If route shift positive (shifting to the left)
+        # Compute x_base and y_base
+        # Positive sampling angle turn left
+        if chi > 0:
+            self.x_s *= -1
         else:
-            route_coord_n = (self.segment_AB_north * self.sampling_count) - (route_shift_mg * np.cos(self.AB_beta))
-            route_coord_e = (self.segment_AB_east * self.sampling_count) + (route_shift_mg * np.sin(self.AB_beta))
+            self.y_s *= -1
+            
+        # Compute next route coordinate
+        route_coord_n = self.x_base + self.x_s
+        route_coord_e = self.y_base + self.y_s
+            
+        # Update new base for the next route coordinate
+        next_segment_factor = self.sampling_count + 1
+        self.x_base = (self.segment_AB_north * next_segment_factor) + self.x_s
+        self.y_base = (self.segment_AB_east * next_segment_factor) + self.y_s
         
         # Repack into simulation input
         simu_input = [route_coord_n, route_coord_e, desired_forward_speed]
         
         return simu_input  
     
-    def select_action_reset(self):
+    # def convert_action_to_simu_input(self, 
+    #                                  action):
+    #     # Unpack action
+    #     route_shift, desired_forward_speed = action
+        
+    #     # Check sign and magnitude
+    #     route_shift_mg = np.abs(route_shift)
+        
+    #     ## Add segment
+    #     # If route shift negative (shifting to the right)
+    #     if route_shift < 0:
+    #         route_coord_n = (self.segment_AB_north * self.sampling_count) + (route_shift_mg * np.cos(self.AB_beta))
+    #         route_coord_e = (self.segment_AB_east * self.sampling_count) - (route_shift_mg * np.sin(self.AB_beta))
+    #     # If route shift positive (shifting to the left)
+    #     else:
+    #         route_coord_n = (self.segment_AB_north * self.sampling_count) - (route_shift_mg * np.cos(self.AB_beta))
+    #         route_coord_e = (self.segment_AB_east * self.sampling_count) + (route_shift_mg * np.sin(self.AB_beta))
+        
+    #     # Repack into simulation input
+    #     simu_input = [route_coord_n, route_coord_e, desired_forward_speed]
+        
+    #     return simu_input  
+    
+    def convert_action_reset(self):
         self.distance_travelled = 0
         self.sampling_count = 0
         self.stop_sampling = False
         self.last_route_point_north = 0 
         self.last_route_point_east = 0
+        self.x_s = 0
+        self.y_s = 0
+        self.x_base = self.segment_AB_north
+        self.y_base = self.segment_AB_north
         self.last_desired_forward_speed = self.env.desired_forward_speed          
 
     def update_parameters(self, memory, batch_size, updates):

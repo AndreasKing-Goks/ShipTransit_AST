@@ -245,7 +245,7 @@ writer = SummaryWriter('runs/{}_AST_SAC_{}_{}_{}'.format(datetime.datetime.now()
 memory = ReplayMemory(args.replay_size, args.seed)
 
 # Log message
-log_ID = 1
+log_ID = 4
 log_dir = f"D:\OneDrive - NTNU\PhD\PhD_Projects\ShipTransit_OptiStress\ShipTransit_AST\logs/run_{log_ID}"
 logging = LogMessage(log_dir, log_ID, args)
 
@@ -316,6 +316,7 @@ for i_episode in itertools.count(1):
             # sampled_action_info = np.insert(action, 0, RL_env.ship_model.int.time) # time is not reset here
             sampled_action_info = np.insert(simu_input, 0, action[0]) # time is not reset here
             sampled_action_info = np.insert(sampled_action_info, 0, RL_env.ship_model.int.time) # time is not reset here
+            sampled_action_info[1] = sampled_action_info[1]*180/np.pi
             action_record[i_episode].append(sampled_action_info)
         
         # Step up the simulation
@@ -338,12 +339,12 @@ for i_episode in itertools.count(1):
         state = next_state
         
     # Reset the action sampling internal state at the end of episode
-    agent.select_action_reset()
+    agent.convert_action_reset()
 
     ## OPTIONAL
     # Simulation steps limiter in one episode. Can be removed
-    if total_numsteps > args.num_steps:
-        break
+    # if total_numsteps > args.num_steps:
+    #     break
     
     # FOR TENSOR BOARD
     # writer.add_scalar('reward/train', reward, i_episode)
@@ -375,7 +376,7 @@ for i_episode in itertools.count(1):
                 
                 # Convert action to simulation input
                 simu_input = agent.convert_action_to_simu_input(action)
-                # print("Episode ", i_episode, ", Step", episode_steps_eval)
+                # print("Episde ", i_episode, ", Step", episode_steps_eval)
                 # print("simu_input =",simu_input)
                 # print("action_to_simu_input =",action_to_simu_input)
                 # debug = True
@@ -398,6 +399,9 @@ for i_episode in itertools.count(1):
             
             avg_reward += episode_reward
             
+            # Reset the action sampling internal state at the end of episode
+            agent.convert_action_reset()
+            
             # If we reach done=True, not only we stop the while-done loop, but also the for-episode
             # loop because the assessment is already complete within the allowed evaluation episode
             # bracket
@@ -417,17 +421,18 @@ for i_episode in itertools.count(1):
 
         logging.evaluation_log(testing_count, avg_reward)
     
-    # if i_episode == 100:
-    #     # print(ship_model.simulation_results['power me [kw]'])
-    #     # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
-    #     break
+    if i_episode == 1:
+        # print(ship_model.simulation_results['power me [kw]'])
+        # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
+        break
 
 ## Convert action_record to data frame
 all_action_record = []
 
 for episode, data in action_record.items():
     # ep_action_record_df = pd.DataFrame(data, columns=["sample time [s]", "route_north [m]", "route_east [m]", "velocity [m/s]"])
-    ep_action_record_df = pd.DataFrame(data, columns=["sample time [s]", "route_shifts [m]", "route_north [m]", "route_east [m]", "velocity [m/s]"])
+    # ep_action_record_df = pd.DataFrame(data, columns=["sample time [s]", "route_shifts [m]", "route_north [m]", "route_east [m]", "velocity [m/s]"])
+    ep_action_record_df = pd.DataFrame(data, columns=["sample time [s]", "scoping_angle [deg]", "route_north [m]", "route_east [m]", "velocity [m/s]"])
     ep_action_record_df["episode"] = episode
     all_action_record.append(ep_action_record_df)
 
@@ -436,7 +441,7 @@ action_record_df = pd.concat(all_action_record, ignore_index=True)
 
 # Convert episode to a categorical type for efficient memory usage
 action_record_df["episode"] = action_record_df["episode"].astype("category")
-# print(action_record_df.head())
+print(action_record_df.head())
 
 ## HOW TO RETRIEVE DATA
 # episode_5_action_record = action_record_df[action_record_df["episode"] == 5]
@@ -447,7 +452,8 @@ action_record_df["episode"] = action_record_df["episode"].astype("category")
 
 last_action_record = action_record_df[action_record_df["episode"] == i_episode]
 sample_time_list = last_action_record["sample time [s]"].to_list()
-route_shifts_list = last_action_record["route_shifts [m]"].to_list()
+# route_shifts_list = last_action_record["route_shifts [m]"].to_list()
+scoping_angle_list = last_action_record["scoping_angle [deg]"].to_list()
 route_north_list = last_action_record["route_north [m]"].to_list()
 route_east_list = last_action_record["route_east [m]"].to_list()
 velocity_list = last_action_record["velocity [m/s]"].to_list()
@@ -510,7 +516,7 @@ axes[0].set_ylabel('North position (m)')
 axes[0].set_aspect('equal')
 
 # Plot 1.2: Sampled Route with the Order
-axes[2].scatter(auto_pilot.navigate.east, auto_pilot.navigate.east, marker='x', color='green')
+axes[2].scatter(auto_pilot.navigate.east, auto_pilot.navigate.north, marker='x', color='green')
 for i, (east, north) in enumerate(zip(auto_pilot.navigate.east, auto_pilot.navigate.north)):
     # For start and end points, do not include sampling detail
     if i == 0 or i == len(auto_pilot.navigate.east)-1: 
@@ -537,6 +543,9 @@ axes[3].plot(results_df['time [s]'], results_df['rudder angle [deg]'])
 axes[3].set_title('Rudder angle [deg]')
 axes[3].set_xlabel('Time (s)')
 axes[3].set_ylabel('Rudder angle [deg]')
+
+print(RL_env.auto_pilot.navigate.north)
+print(RL_env.auto_pilot.navigate.east)
 
 # Adjust layout for better spacing
 plt.tight_layout()

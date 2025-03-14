@@ -33,7 +33,6 @@ class LogMessage:
             
     def initial_log(self):
         self.input_log("------------------------------- STRESS TEST PARAMETERS --------------------------------", overwrite=True)
-        self.input_log("")
         self.input_log("* Coefficient and boolean parameters")
         self.input_log(f" Policy type                                   : {self.args.policy}")
         self.input_log(f" Do evaluation                                 : {self.args.eval}")
