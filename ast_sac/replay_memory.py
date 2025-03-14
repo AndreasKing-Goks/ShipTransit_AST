@@ -11,6 +11,7 @@ class ReplayMemory:
         self.position = 0
 
     def push(self, state, action, reward, next_state, done):
+        # print(f"Debug (Before Storing): action shape = {action.shape}, action = {action}")
         if len(self.buffer) < self.capacity:
             self.buffer.append(None)
         self.buffer[self.position] = (state, action, reward, next_state, done)
@@ -18,7 +19,10 @@ class ReplayMemory:
 
     def sample(self, batch_size):
         batch = random.sample(self.buffer, batch_size)
+        # print(self.buffer)
+        # print(batch_size)
         state, action, reward, next_state, done = map(np.stack, zip(*batch))
+        # print(f"Debug (Sampling): action batch shape = {action.shape}")
         return state, action, reward, next_state, done
 
     def __len__(self):

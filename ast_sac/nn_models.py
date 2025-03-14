@@ -46,7 +46,12 @@ class QNetwork(nn.Module):
         self.apply(weights_init_)
         
     def forward(self, state, action):
+        # print(f"State batch shape: {state.shape}")
+        # print(f"Action batch shape: {action.shape}")
+
         xu = torch.cat([state, action], 1)
+        
+        # print(f"Concatenated input shape (xu): {xu.shape}")
         
         x1 = F.relu(self.linear1(xu))
         x1 = F.relu(self.linear2(x1))

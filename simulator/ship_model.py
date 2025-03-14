@@ -502,12 +502,13 @@ class ShipModel(BaseShipModel):
         self.yaw_rate = self.int.integrate(x=self.yaw_rate, dx=self.d_yaw_rate)
         self.ship_machinery_model.integrate_differentials()
 
-    def store_simulation_data(self, load_perc):
+    def store_simulation_data(self, load_perc, rudder_angle):
         load_perc_me, load_perc_hsg = self.ship_machinery_model.load_perc(load_perc)
         self.simulation_results['time [s]'].append(self.int.time)
         self.simulation_results['north position [m]'].append(self.north)
         self.simulation_results['east position [m]'].append(self.east)
         self.simulation_results['yaw angle [deg]'].append(self.yaw_angle * 180 / np.pi)
+        self.simulation_results['rudder angle [deg]'].append(rudder_angle * 180 / np.pi)
         self.simulation_results['forward speed[m/s]'].append(self.forward_speed)
         self.simulation_results['sideways speed [m/s]'].append(self.sideways_speed)
         self.simulation_results['yaw rate [deg/sec]'].append(self.yaw_rate * 180 / np.pi)
@@ -641,12 +642,13 @@ class ShipModelAST(BaseShipModel):
         self.yaw_rate = self.int.integrate(x=self.yaw_rate, dx=self.d_yaw_rate)
         self.ship_machinery_model.integrate_differentials()
 
-    def store_simulation_data(self, load_perc, e_ct, e_psi):
+    def store_simulation_data(self, load_perc, rudder_angle, e_ct, e_psi):
         load_perc_me, load_perc_hsg = self.ship_machinery_model.load_perc(load_perc)
         self.simulation_results['time [s]'].append(self.int.time)
         self.simulation_results['north position [m]'].append(self.north)
         self.simulation_results['east position [m]'].append(self.east)
         self.simulation_results['yaw angle [deg]'].append(self.yaw_angle * 180 / np.pi)
+        self.simulation_results['rudder angle [deg]'].append(rudder_angle * 180 / np.pi)
         self.simulation_results['forward speed [m/s]'].append(self.forward_speed)
         self.simulation_results['sideways speed [m/s]'].append(self.sideways_speed)
         self.simulation_results['yaw rate [deg/sec]'].append(self.yaw_rate * 180 / np.pi)

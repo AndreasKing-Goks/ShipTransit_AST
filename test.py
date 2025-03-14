@@ -158,10 +158,9 @@ while ship_model.int.time < ship_model.int.sim_time:
     )
 
     
-    
     ## THIS SHOULD FALL UNDER STEP FUNCTION
     # Update and integrate differential equations for current time step
-    ship_model.store_simulation_data(throttle)
+    ship_model.store_simulation_data(throttle, rudder_angle)
     
     # print(ship_model.simulation_results['north position [m]'])
     
@@ -212,12 +211,22 @@ for obstacle in list_of_obstacles:
 
 map_ax.set_aspect('equal')
 
+map_ax.set_title('Plot of Ship\'s Trajectory')
+map_ax.set_xlabel('east [m]')
+map_ax.set_ylabel('north [m]')
+
 # Example on plotting time series
 fuel_ifg, fuel_ax = plt.subplots()
 results.plot(x='time [s]', y='power [kw]', ax=fuel_ax)
+fuel_ax.set_xlabel('time [s]')
+fuel_ax.set_ylabel('power [kw]')
+fuel_ax.set_title('Plot of Power Usage')
 
 int_fig, int_ax = plt.subplots()
-int_ax.plot(times, integrator_term)
+results.plot(x='time [s]', y='rudder angle [deg]', ax=int_ax)
+int_ax.set_title('Plot of Rudder Angle')
+int_ax.set_xlabel('time [s]')
+int_ax.set_ylabel('rudder angle [deg]')
 
 plt.show()
 

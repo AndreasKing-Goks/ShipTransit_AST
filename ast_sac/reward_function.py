@@ -3,12 +3,12 @@ This module provides classes to construct reward function for the SAC.
 """
 
 import numpy as np
-from ast_sac.failure_modes import isMechanicalFailure, isNavigationFailure, isBeachingFailure, isBlackOutFailure
+from ast_sac.failure_modes import isMechanicalFailure, isNavigationFailure, isHitMapHorizon, isBeachingFailure, isBlackOutFailure
 from simulator.obstacle import StaticObstacle
 
 def non_terminal_state(pos):
     # reward = JONSWAP_reward_signal(pos) # JONSWAP func
-    reward = 1
+    reward = 0
     return reward
     
 def non_failure_terminal_state(pos, 
@@ -66,9 +66,15 @@ def terminal_state(measured_shaft_rpm,
     if isNavigationFailure(los_ct_error):
         reward_nf = -10
         reward_terminal += reward_nf
-        done= True
+        done = True
         status += "Navigation failure "
         # print('Ship experiencing Navigation Failure!')
+        
+    if isHitMapHorizon(pos):
+        reward_hmhf = -100
+        reward_terminal += reward_hmhf
+        done = True
+        status += "Hit map horizon"
             
     # Beaching Failure
     if isBeachingFailure(pos, obstacles):
@@ -91,7 +97,12 @@ def terminal_state(measured_shaft_rpm,
         
     return reward_terminal, done, status
         
-def reward_function(pos, heading_error, measured_shaft_rpm, los_ct_error, engine_load, av_engine_load, auto_pilot, obstacles):
+def reward_function(pos, 
+                    heading_error, 
+                    measured_shaft_rpm, 
+                    los_ct_error, 
+                    engine_load, 
+                    av_engine_load, auto_pilot, obstacles):
     
     # Compute non terminal state reward
     reward_non_terminal = non_terminal_state(pos)
