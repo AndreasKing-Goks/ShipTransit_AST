@@ -62,7 +62,7 @@ class ShipRLEnv(Env):
         
         # Define action space [route_point_shift, desired_speed]
         self.action_space = Box(
-            low = np.array([-10000/np.sqrt(2), 5], dtype=np.float32),
+            low = np.array([-10000/np.sqrt(2), 0], dtype=np.float32),
             high = np.array([10000/np.sqrt(2), 8], dtype=np.float32),
         )
         

@@ -9,6 +9,8 @@ from ast_sac.nn_models import *
 from ast_sac.sac import SAC
 from ast_sac.replay_memory import ReplayMemory
 
+from log_function.log_function import LogMessage
+
 import numpy as np
 import pandas as pd
 import itertools
@@ -85,9 +87,9 @@ parser.add_argument('--num_scoring_episodes', type=int, default=20, metavar='N',
                     help='Number of episode for learning performance assesment(default: 20)')
 
 # Others
-parser.add_argument('--radius_of_acceptance', type=int, default=600, metavar='O',
+parser.add_argument('--radius_of_acceptance', type=int, default=500, metavar='O',
                     help='Radius of acceptance for LOS algorithm(default: 600)')
-parser.add_argument('--lookahead_distance', type=int, default=450, metavar='O',
+parser.add_argument('--lookahead_distance', type=int, default=1000, metavar='O',
                     help='Lookahead distance for LOS algorithm(default: 450)')
 
 args = parser.parse_args()
@@ -242,6 +244,11 @@ writer = SummaryWriter('runs/{}_AST_SAC_{}_{}_{}'.format(datetime.datetime.now()
 # Memory
 memory = ReplayMemory(args.replay_size, args.seed)
 
+# Log message
+log_ID = 1
+log_dir = f"D:\OneDrive - NTNU\PhD\PhD_Projects\ShipTransit_OptiStress\ShipTransit_AST\logs/run_{log_ID}"
+logging = LogMessage(log_dir, log_ID, args)
+
 ## Training loop
 total_numsteps = 0
 updates = 0
@@ -258,6 +265,9 @@ action_record = defaultdict(list)
 # desired_speed is sampled for each time step
 # route points are sampled for each SAC iteration
 # For each time step, route points are hold until new route points are sampled
+
+# Initial log message
+logging.initial_log()
 
 # Count the episode
 for i_episode in itertools.count(1):
@@ -290,6 +300,7 @@ for i_episode in itertools.count(1):
                 # Update parameters of all the networks
                 critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
                 
+                # FOR TENSOR BOARD
                 # writer.add_scalar('loss/critic_1', critic_1_loss, updates)
                 # writer.add_scalar('loss/critic_2', critic_2_loss, updates)
                 # writer.add_scalar('loss/policy', policy_loss, updates)
@@ -333,10 +344,15 @@ for i_episode in itertools.count(1):
     # Simulation steps limiter in one episode. Can be removed
     if total_numsteps > args.num_steps:
         break
-
+    
+    # FOR TENSOR BOARD
     # writer.add_scalar('reward/train', reward, i_episode)
-    print("Episode: {}, Total numsteps: {}, Episode steps: {}, Reward: {}, Status:{}".\
-        format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2), status))
+    
+    # OLD PRINT METHOD
+    # print("Episode: {}, Total numsteps: {}, Episode steps: {}, Reward: {}, Status:{}".\
+    #     format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2), status))
+    
+    logging.training_log(i_episode, total_numsteps, episode_steps, episode_reward, status)
     
     ## Asses learning performance
     if i_episode % args.scoring_episode_every == 0 and args.eval is True:
@@ -391,20 +407,20 @@ for i_episode in itertools.count(1):
         avg_reward /= args.num_scoring_episodes
         testing_count += 1
         
+        # FOR TENSORBOARD
         # writer.add_scalar('avg_reward/test', avg_reward, i_episode)
         
-        print("----------------------------------------")
-        print("Test Number: {}, Avg. Reward: {}".format(testing_count, round(avg_reward, 2)))
-        print("----------------------------------------")
-        
-    # print(np.array(auto_pilot.navigate.north))
-    # print(np.array(auto_pilot.navigate.east))
+        # OLD PRINT METHOD
+        # print("----------------------------------------")
+        # print("Test Number: {}, Avg. Reward: {}".format(testing_count, round(avg_reward, 2)))
+        # print("----------------------------------------")
 
+        logging.evaluation_log(testing_count, avg_reward)
     
-    if i_episode == 100:
-        # print(ship_model.simulation_results['power me [kw]'])
-        # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
-        break
+    # if i_episode == 100:
+    #     # print(ship_model.simulation_results['power me [kw]'])
+    #     # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
+    #     break
 
 ## Convert action_record to data frame
 all_action_record = []
