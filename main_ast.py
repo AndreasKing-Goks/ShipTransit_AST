@@ -11,6 +11,8 @@ from ast_sac.replay_memory import ReplayMemory
 
 from log_function.log_function import LogMessage
 
+import json
+import os
 import numpy as np
 import pandas as pd
 import itertools
@@ -245,18 +247,28 @@ writer = SummaryWriter('runs/{}_AST_SAC_{}_{}_{}'.format(datetime.datetime.now()
 memory = ReplayMemory(args.replay_size, args.seed)
 
 # Log message
-log_ID = 4
+log_ID = 11
 log_dir = f"D:\OneDrive - NTNU\PhD\PhD_Projects\ShipTransit_OptiStress\ShipTransit_AST\logs/run_{log_ID}"
 logging = LogMessage(log_dir, log_ID, args)
+save_record = True
 
 ## Training loop
 total_numsteps = 0
 updates = 0
 testing_count = 0
 
-## STORE SAMPLED ACTION
+## STORE RESULTS
+# ACTION RECORD
 action_record = defaultdict(list)
-# After this develop a function that can read the sampled action record based on episode
+
+# STEPWISE - EPISODICAL LOGGING RECORD
+sampled_action = None
+episode_record = defaultdict(lambda: {"sampled_action": [], "termination": [], "rewards": [], "states": []})
+
+# REWARD STORE
+best_reward = float('-inf')
+best_episode = 0
+best_policy_wegihts = None
 
 ## NOTE:
 # We have SAC iterations and simulation time steps
@@ -276,7 +288,12 @@ for i_episode in itertools.count(1):
     done = False
     state = RL_env.reset()
     
+    # Reset the agent's travel distance and time for every episode
+    agent.total_distance_travelled = 0
+    
+    
     while not done:
+        # At episode steps 0, we sampled the next intermediate route point immediately. 
         if episode_steps == 0:
             init = True
         else:
@@ -287,12 +304,14 @@ for i_episode in itertools.count(1):
                                                                                     done,
                                                                                     init=init,
                                                                                     mode=0) # Random sampling 
+            for_record_action = action # For logging
             
         else:
             action, action_to_simu_input, sampling_time_record = agent.select_action(state, 
                                                                                     done,
                                                                                     init=init,
                                                                                     mode=1) # Policy based sampling
+            for_record_action = action # For logging
 
         if len(memory) > args.batch_size:
             # Number of updates per step in environment
@@ -312,8 +331,8 @@ for i_episode in itertools.count(1):
         simu_input = agent.convert_action_to_simu_input(action)
         
         ## STORE SAMPLED ACTION 
+        # The flag is needed because the action is not sampled all the time
         if action_to_simu_input:
-            # sampled_action_info = np.insert(action, 0, RL_env.ship_model.int.time) # time is not reset here
             sampled_action_info = np.insert(simu_input, 0, action[0]) # time is not reset here
             sampled_action_info = np.insert(sampled_action_info, 0, RL_env.ship_model.int.time) # time is not reset here
             sampled_action_info[1] = sampled_action_info[1]*180/np.pi
@@ -338,6 +357,12 @@ for i_episode in itertools.count(1):
         # Set the next state as current state for the next step
         state = next_state
         
+        # STORE EPISODIC_RESULTS
+        episode_record[i_episode]["sampled_action"].append(for_record_action)
+        episode_record[i_episode]["termination"].append(done)
+        episode_record[i_episode]["rewards"].append(reward)
+        episode_record[i_episode]["states"].append(state.tolist())
+        
     # Reset the action sampling internal state at the end of episode
     agent.convert_action_reset()
 
@@ -353,7 +378,27 @@ for i_episode in itertools.count(1):
     # print("Episode: {}, Total numsteps: {}, Episode steps: {}, Reward: {}, Status:{}".\
     #     format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2), status))
     
-    logging.training_log(i_episode, total_numsteps, episode_steps, episode_reward, status)
+    # Log the training progress
+    logging.training_log(i_episode, total_numsteps, episode_steps, episode_reward, agent.total_distance_travelled, RL_env.ship_model.int.time, status)
+    
+    # CHECK REWARD AND SAVE THE POLICY WEIGHTS
+    if episode_reward > best_reward:
+        best_reward = episode_reward
+        best_episode = i_episode
+        # best_policy_wegihts = agent.get_policy_weights()
+        
+        # # Save the best policy weights
+        # policy_log_path = os.path.join(log_dir, "best_policy_weights.json")
+        # with open(policy_log_path, "w") as f:
+        #     json.dump(best_policy_wegihts, f, indent=4)
+        
+        # logging.input_log(f"New best policy saved with reward: {best_reward}")
+        
+    # SAVE THE EPISODE RECORD INTO A FILE
+    logging.save_episode_record(episode_record, save_record)
+        
+    # Log the simulation steps on this episode
+    logging.simulation_step_log(episode_record, i_episode, log=False)
     
     ## Asses learning performance
     if i_episode % args.scoring_episode_every == 0 and args.eval is True:
@@ -376,16 +421,10 @@ for i_episode in itertools.count(1):
                 
                 # Convert action to simulation input
                 simu_input = agent.convert_action_to_simu_input(action)
-                # print("Episde ", i_episode, ", Step", episode_steps_eval)
-                # print("simu_input =",simu_input)
-                # print("action_to_simu_input =",action_to_simu_input)
-                # debug = True
                 
                 next_state, reward, done, _ = RL_env.step(simu_input, 
                                                           action_to_simu_input,
                                                           sampling_time_record)
-                # print("Done =", done)
-                # print("#################")
                 
                 episode_reward += reward
                 
@@ -404,7 +443,7 @@ for i_episode in itertools.count(1):
             
             # If we reach done=True, not only we stop the while-done loop, but also the for-episode
             # loop because the assessment is already complete within the allowed evaluation episode
-            # bracket
+            # bracket [QUESTIONABLE]
             if done:
                 break
             
@@ -421,10 +460,13 @@ for i_episode in itertools.count(1):
 
         logging.evaluation_log(testing_count, avg_reward)
     
-    if i_episode == 1:
+    if i_episode == 5:
         # print(ship_model.simulation_results['power me [kw]'])
         # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
         break
+
+## LOG THE BEST EPISODE SIMULATION STEPS
+logging.simulation_step_log(episode_record, best_episode, log=False)
 
 ## Convert action_record to data frame
 all_action_record = []
@@ -441,7 +483,7 @@ action_record_df = pd.concat(all_action_record, ignore_index=True)
 
 # Convert episode to a categorical type for efficient memory usage
 action_record_df["episode"] = action_record_df["episode"].astype("category")
-print(action_record_df.head())
+# print(action_record_df)
 
 ## HOW TO RETRIEVE DATA
 # episode_5_action_record = action_record_df[action_record_df["episode"] == 5]
@@ -457,14 +499,6 @@ scoping_angle_list = last_action_record["scoping_angle [deg]"].to_list()
 route_north_list = last_action_record["route_north [m]"].to_list()
 route_east_list = last_action_record["route_east [m]"].to_list()
 velocity_list = last_action_record["velocity [m/s]"].to_list()
-
-# print(route_shifts_list)
-# print("################")
-# print(route_north_list)
-# print(route_east_list)
-# print("################")
-# print(auto_pilot.navigate.north)
-# print(auto_pilot.navigate.east)
 
 ## Store the simulation results in a pandas dataframe
 results_df = pd.DataFrame().from_dict(ship_model.simulation_results)
@@ -544,8 +578,8 @@ axes[3].set_title('Rudder angle [deg]')
 axes[3].set_xlabel('Time (s)')
 axes[3].set_ylabel('Rudder angle [deg]')
 
-print(RL_env.auto_pilot.navigate.north)
-print(RL_env.auto_pilot.navigate.east)
+# print(RL_env.auto_pilot.navigate.north)
+# print(RL_env.auto_pilot.navigate.east)
 
 # Adjust layout for better spacing
 plt.tight_layout()

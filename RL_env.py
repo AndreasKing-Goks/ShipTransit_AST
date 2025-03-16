@@ -261,7 +261,7 @@ class ShipRLEnv(Env):
             The reason is this occurence most likely happened because the sampled speed
             is too slow 
         '''
-        scale_factor = 1.0
+        scale_factor = 2.5
         
         time_expected = scale_factor * self.AB_distance / self.expected_forward_speed
         
@@ -342,7 +342,7 @@ class ShipRLEnv(Env):
         relative_dist = np.sqrt((n_pos - n_route_end)**2 + (e_pos - e_route_end)**2)
         
         # Check if the ship arrive at the end point
-        arrival_radius = 10 # Arrival radius zone
+        arrival_radius = 200 # Arrival radius zone
         if relative_dist <= arrival_radius:
             reward_terminal += 1000
             done = True

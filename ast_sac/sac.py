@@ -63,6 +63,7 @@ class SAC(object):
         self.segment_AB_east = self.AB_east / (self.sampling_frequency + 1)
         self.segment_AB = np.sqrt(self.segment_AB_north**2 + self.segment_AB_east**2)
         
+        self.total_distance_travelled = 0
         self.distance_travelled = 0
         self.sampling_count = 0
         
@@ -99,6 +100,7 @@ class SAC(object):
                 dist_trav_north = self.env.ship_model.simulation_results['north position [m]'][-1] - self.env.ship_model.simulation_results['north position [m]'][-2]
                 dist_trav_east = self.env.ship_model.simulation_results['east position [m]'][-1] - self.env.ship_model.simulation_results['east position [m]'][-2]
                 self.distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
+                self.total_distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
 
             # Handle sampling condition
             # Do sample action at "init condition" or after the ship has travelled a certain distances
@@ -224,6 +226,7 @@ class SAC(object):
     
     def convert_action_reset(self):
         self.distance_travelled = 0
+        self.time_record = 0
         self.sampling_count = 0
         self.stop_sampling = False
         self.last_route_point_north = 0 

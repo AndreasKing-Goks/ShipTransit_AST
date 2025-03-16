@@ -1,0 +1,44 @@
+-------------------------------------------------------- STRESS TEST PARAMETERS ---------------------------------------------------------
+* Coefficient and boolean parameters
+ Policy type                                   : Gaussian
+ Do evaluation                                 : True
+ Reward discount factor (gamma)                : 0.99
+ Target smoothing coefficient (tau)            : 0.005
+ Action sampling frequency coefficient (theta) : 1.5
+ Maximum action sampling count per episode     : 4
+ RL learning rate                              : 0.0003
+ SAC's entropy temperature parameters (alpha)  : 0.2
+ Do automatic entroypy tuning                  : False
+
+* Neural networks parameters
+ Set random seed                               : 25450
+ SAC batch size                                : 64
+ SAC replay size                               : 1000
+ SAC hidden network size                       : 256
+ Run training on CUDA                          : False
+
+* Timesteps and episode parameters
+ Simulator time step size                      : 0.5
+ Maximum steps count over all episodes         : 100000
+ Steps count for initial exploration           : 10000
+ Steps count for model update                  : 1
+ Steps count for target update                 : 1
+ Episodes count for evaluation                 : 20
+ Episodes count during evaluation              : 20
+
+* Others
+ Autopilot LOS's radius of acceptance          : 500
+ Autopilot LOS's lookahead distance            : 1000
+
+------------------------------------------------------------ TRAINING PHASE -------------------------------------------------------------
+
+Episode: 1   , Total numsteps: 11083 , Episode steps: 11083, Travel distanced: 6558.88, Travel time: 5541.50 Reward: 10567.88
+Status: |Slow progress failure|
+Episode: 2   , Total numsteps: 11761 , Episode steps: 678  , Travel distanced: 796.00, Travel time: 339.00 Reward: -255.35 
+Status: |Map horizon hit failure|
+Episode: 3   , Total numsteps: 12387 , Episode steps: 626  , Travel distanced: 761.24, Travel time: 313.00 Reward: -329.98 
+Status: |Map horizon hit failure|
+Episode: 4   , Total numsteps: 13113 , Episode steps: 726  , Travel distanced: 801.68, Travel time: 363.00 Reward: -203.09 
+Status: |Map horizon hit failure|
+Episode: 5   , Total numsteps: 14284 , Episode steps: 1171 , Travel distanced: 1137.36, Travel time: 585.50 Reward: 573.30  
+Status: |Map horizon hit failure|
