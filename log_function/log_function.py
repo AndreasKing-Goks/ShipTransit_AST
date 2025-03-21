@@ -76,6 +76,7 @@ class LogMessage:
         
     def training_log(self, 
                      i_episode, 
+                     elapsed_time,
                      total_numsteps, 
                      episode_steps, 
                      episode_reward, 
@@ -83,7 +84,7 @@ class LogMessage:
                      travel_time,
                      status):
         reward = round(episode_reward, 2)
-        self.input_log(f"Episode: {i_episode:<4}, Total numsteps: {total_numsteps:<6}, Episode steps: {episode_steps:<5}, Travel distanced: {travel_distance:<6.2f}, Travel time: {travel_time:<5.2f} Reward: {reward:<8.2f}")
+        self.input_log(f"Episode: {i_episode:<4}, Elapsed time (s):{elapsed_time:<3.1f}, Total numsteps: {total_numsteps:<6}, Episode steps: {episode_steps:<5}, Travel distanced: {travel_distance:<6.2f}, Travel time: {travel_time:<5.2f} Reward: {reward:<8.2f}")
         self.input_log(f"Status:{status}")
     
     def evaluation_log(self,

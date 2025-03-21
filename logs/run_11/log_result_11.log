@@ -32,13 +32,14 @@
 
 ------------------------------------------------------------ TRAINING PHASE -------------------------------------------------------------
 
-Episode: 1   , Total numsteps: 11083 , Episode steps: 11083, Travel distanced: 6558.88, Travel time: 5541.50 Reward: 10567.88
-Status: |Slow progress failure|
-Episode: 2   , Total numsteps: 11761 , Episode steps: 678  , Travel distanced: 796.00, Travel time: 339.00 Reward: -255.35 
+Episode: 1   , Elapsed time (s):112.3, Total numsteps: 9943  , Episode steps: 9943 , Travel distanced: 12738.33, Travel time: 4971.50 Reward: 10456.29
+Status: |Reach endpoint|
+New best policy saved at Episode 1 with Reward: 10456.29
+Episode: 2   , Elapsed time (s):69.9, Total numsteps: 16242 , Episode steps: 6299 , Travel distanced: 7061.95, Travel time: 3149.50 Reward: 2109.46 
+Status: |Navigation failure|
+Episode: 3   , Elapsed time (s):10.1, Total numsteps: 16978 , Episode steps: 736  , Travel distanced: 830.83, Travel time: 368.00 Reward: -1899.31
 Status: |Map horizon hit failure|
-Episode: 3   , Total numsteps: 12387 , Episode steps: 626  , Travel distanced: 761.24, Travel time: 313.00 Reward: -329.98 
+Episode: 4   , Elapsed time (s):3.3, Total numsteps: 17256 , Episode steps: 278  , Travel distanced: 615.57, Travel time: 139.00 Reward: -953.55 
 Status: |Map horizon hit failure|
-Episode: 4   , Total numsteps: 13113 , Episode steps: 726  , Travel distanced: 801.68, Travel time: 363.00 Reward: -203.09 
-Status: |Map horizon hit failure|
-Episode: 5   , Total numsteps: 14284 , Episode steps: 1171 , Travel distanced: 1137.36, Travel time: 585.50 Reward: 573.30  
+Episode: 5   , Elapsed time (s):4.1, Total numsteps: 17551 , Episode steps: 295  , Travel distanced: 629.73, Travel time: 147.50 Reward: -927.11 
 Status: |Map horizon hit failure|

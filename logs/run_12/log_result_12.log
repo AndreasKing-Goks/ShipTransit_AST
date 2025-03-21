@@ -1,0 +1,46 @@
+-------------------------------------------------------- STRESS TEST PARAMETERS ---------------------------------------------------------
+* Coefficient and boolean parameters
+ Policy type                                   : Gaussian
+ Do evaluation                                 : True
+ Reward discount factor (gamma)                : 0.99
+ Target smoothing coefficient (tau)            : 0.005
+ Action sampling frequency coefficient (theta) : 1.5
+ Maximum action sampling count per episode     : 4
+ RL learning rate                              : 0.0003
+ SAC's entropy temperature parameters (alpha)  : 0.2
+ Do automatic entroypy tuning                  : True
+
+* Neural networks parameters
+ Set random seed                               : 25450
+ SAC batch size                                : 64
+ SAC replay size                               : 1000
+ SAC hidden network size                       : 256
+ Run training on CUDA                          : True
+
+* Timesteps and episode parameters
+ Simulator time step size                      : 0.5
+ Maximum steps count over all episodes         : 100000
+ Steps count for initial exploration           : 10000
+ Steps count for model update                  : 1
+ Steps count for target update                 : 1
+ Episodes count for evaluation                 : 20
+ Episodes count during evaluation              : 20
+
+* Others
+ Autopilot LOS's radius of acceptance          : 500
+ Autopilot LOS's lookahead distance            : 1000
+
+------------------------------------------------------------ TRAINING PHASE -------------------------------------------------------------
+
+Episode: 1   , Elapsed time (s):49.5, Total numsteps: 2744  , Episode steps: 2744 , Travel distanced: 6619.95, Travel time: 1372.00 Reward: 1781.28 
+Status: |Collision failure|
+New best policy saved at Episode 1 with Reward: 1781.28
+Episode: 2   , Elapsed time (s):91.6, Total numsteps: 7152  , Episode steps: 4408 , Travel distanced: 6906.20, Travel time: 2204.00 Reward: 3723.57 
+Status: |Collision failure|
+New best policy saved at Episode 2 with Reward: 3723.57
+Episode: 3   , Elapsed time (s):76.6, Total numsteps: 10303 , Episode steps: 3151 , Travel distanced: 6938.08, Travel time: 1575.50 Reward: 2252.45 
+Status: |Collision failure|
+Episode: 4   , Elapsed time (s):15.3, Total numsteps: 11009 , Episode steps: 706  , Travel distanced: 825.79, Travel time: 353.00 Reward: -219.73 
+Status: |Map horizon hit failure|
+Episode: 5   , Elapsed time (s):23.1, Total numsteps: 12146 , Episode steps: 1137 , Travel distanced: 1101.04, Travel time: 568.50 Reward: 491.56  
+Status: |Map horizon hit failure|

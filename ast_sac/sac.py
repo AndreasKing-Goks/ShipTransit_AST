@@ -292,37 +292,100 @@ class SAC(object):
         return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item()
 
     # Save model parameters
-    def save_checkpoint(self, env_name, suffix="", ckpt_path=None):
-        if not os.path.exists('checkpoints/'):
-            os.makedirs('checkpoints/')
-        if ckpt_path is None:
-            ckpt_path = "checkpoints/sac_checkpoint_{}_{}".format(env_name, suffix)
-        print('Saving models to {}'.format(ckpt_path))
-        torch.save({'policy_state_dict': self.policy.state_dict(),
-                    'critic_state_dict': self.critic.state_dict(),
-                    'critic_target_state_dict': self.critic_target.state_dict(),
-                    'critic_optimizer_state_dict': self.critic_optim.state_dict(),
-                    'policy_optimizer_state_dict': self.policy_optim.state_dict()}, ckpt_path)
+    def save_checkpoint(self, log_dir, best_reward, best_episode, total_numsteps, suffix="best"):
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
 
+        # Define checkpoint path inside log_dir
+        ckpt_path = os.path.join(log_dir, f"sac_checkpoint_{suffix}.pth")
+    
+        print(f"Saving best model to {ckpt_path} (Episode {best_episode}, Reward {best_reward:.2f})")
+    
+        # Save model, optimizers, and training metadata
+        torch.save({
+            'policy_state_dict': self.policy.state_dict(),
+            'critic_state_dict': self.critic.state_dict(),
+            'critic_target_state_dict': self.critic_target.state_dict(),
+            'critic_optimizer_state_dict': self.critic_optim.state_dict(),
+            'policy_optimizer_state_dict': self.policy_optim.state_dict(),
+            'best_reward': best_reward,  # Track best reward
+            'best_episode': best_episode,  # Track best episode
+            'total_steps': total_numsteps  # Track training progress
+        }, ckpt_path)
+        
     # Load model parameters
-    def load_checkpoint(self, ckpt_path, evaluate=False):
-        print('Loading models from {}'.format(ckpt_path))
-        if ckpt_path is not None:
-            checkpoint = torch.load(ckpt_path)
-            self.policy.load_state_dict(checkpoint['policy_state_dict'])
-            self.critic.load_state_dict(checkpoint['critic_state_dict'])
-            self.critic_target.load_state_dict(checkpoint['critic_target_state_dict'])
-            self.critic_optim.load_state_dict(checkpoint['critic_optimizer_state_dict'])
-            self.policy_optim.load_state_dict(checkpoint['policy_optimizer_state_dict'])
+    def load_checkpoint(self, log_dir, suffix="best", evaluate=False):
+        ckpt_path = os.path.join(log_dir, f"sac_checkpoint_{suffix}.pth")
 
-            if evaluate:
-                self.policy.eval()
-                self.critic.eval()
-                self.critic_target.eval()
-            else:
-                self.policy.train()
-                self.critic.train()
-                self.critic_target.train()
+        if not os.path.exists(ckpt_path):
+            print(f"No checkpoint found at {ckpt_path}")
+            return None, None, None  # No checkpoint found
+
+        print(f"Loading model from {ckpt_path}")
+
+        # Load checkpoint
+        checkpoint = torch.load(ckpt_path)
+
+        # Load model weights
+        self.policy.load_state_dict(checkpoint['policy_state_dict'])
+        self.critic.load_state_dict(checkpoint['critic_state_dict'])
+        self.critic_target.load_state_dict(checkpoint['critic_target_state_dict'])
+
+        # Load optimizer states
+        self.critic_optim.load_state_dict(checkpoint['critic_optimizer_state_dict'])
+        self.policy_optim.load_state_dict(checkpoint['policy_optimizer_state_dict'])
+
+        # Load training progress
+        best_reward = checkpoint.get("best_reward", float('-inf'))  # Default -inf if not found
+        best_episode = checkpoint.get("best_episode", 0)  # Default episode 0
+        total_steps = checkpoint.get("total_steps", 0)  # Default 0
+
+        # Set model to eval mode if testing
+        if evaluate:
+            self.policy.eval()
+            self.critic.eval()
+            self.critic_target.eval()
+        else:
+            self.policy.train()
+            self.critic.train()
+            self.critic_target.train()
+
+        print(f"Restored best reward: {best_reward:.2f}, Best episode: {best_episode}, Total steps: {total_steps}")
+    
+        return best_reward, best_episode, total_steps
+    
+    
+    # def save_checkpoint(self, env_name, suffix="", ckpt_path=None):
+    #     if not os.path.exists('checkpoints/'):
+    #         os.makedirs('checkpoints/')
+    #     if ckpt_path is None:
+    #         ckpt_path = "checkpoints/sac_checkpoint_{}_{}".format(env_name, suffix)
+    #     print('Saving models to {}'.format(ckpt_path))
+    #     torch.save({'policy_state_dict': self.policy.state_dict(),  
+    #                 'critic_state_dict': self.critic.state_dict(),
+    #                 'critic_target_state_dict': self.critic_target.state_dict(),
+    #                 'critic_optimizer_state_dict': self.critic_optim.state_dict(),
+    #                 'policy_optimizer_state_dict': self.policy_optim.state_dict()}, ckpt_path)
+
+    # # Load model parameters
+    # def load_checkpoint(self, ckpt_path, evaluate=False):
+    #     print('Loading models from {}'.format(ckpt_path))
+    #     if ckpt_path is not None:
+    #         checkpoint = torch.load(ckpt_path)
+    #         self.policy.load_state_dict(checkpoint['policy_state_dict'])
+    #         self.critic.load_state_dict(checkpoint['critic_state_dict'])
+    #         self.critic_target.load_state_dict(checkpoint['critic_target_state_dict'])
+    #         self.critic_optim.load_state_dict(checkpoint['critic_optimizer_state_dict'])
+    #         self.policy_optim.load_state_dict(checkpoint['policy_optimizer_state_dict'])
+
+    #         if evaluate:
+    #             self.policy.eval()
+    #             self.critic.eval()
+    #             self.critic_target.eval()
+    #         else:
+    #             self.policy.train()
+    #             self.critic.train()
+    #             self.critic_target.train()
 
 # def sample_action_on_mode(self, state, mode):
 #     if mode == 0:

@@ -13,6 +13,7 @@ from log_function.log_function import LogMessage
 
 import json
 import os
+import time
 import numpy as np
 import pandas as pd
 import itertools
@@ -53,7 +54,7 @@ parser.add_argument('--lr', type=float, default=0.0003, metavar='G',
 parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
                     help='Temperature parameter α determines the relative importance of the entropy\
                             term against the reward (default: 0.2)')
-parser.add_argument('--automatic_entropy_tuning', type=bool, default=False, metavar='G',
+parser.add_argument('--automatic_entropy_tuning', type=bool, default=True, metavar='G',
                     help='Automaically adjust α (default: False)')
 
 # Neural networks parameters
@@ -65,7 +66,7 @@ parser.add_argument('--replay_size', type=int, default=1000, metavar='Q',
                     help='size of replay buffer (default: 1000000)')
 parser.add_argument('--hidden_size', type=int, default=256, metavar='Q',
                     help='hidden size (default: 256)')
-parser.add_argument('--cuda', action="store_true",
+parser.add_argument('--cuda', action="store_true", default=True,
                     help='run on CUDA (default: False)')
 
 # Timesteps and episode parameters
@@ -236,7 +237,7 @@ if random_seed:
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-# Agent
+# Agent while using CUDA
 agent = SAC(RL_env, args)
 
 # Tensorboard 
@@ -247,7 +248,7 @@ writer = SummaryWriter('runs/{}_AST_SAC_{}_{}_{}'.format(datetime.datetime.now()
 memory = ReplayMemory(args.replay_size, args.seed)
 
 # Log message
-log_ID = 11
+log_ID = 12
 log_dir = f"D:\OneDrive - NTNU\PhD\PhD_Projects\ShipTransit_OptiStress\ShipTransit_AST\logs/run_{log_ID}"
 logging = LogMessage(log_dir, log_ID, args)
 save_record = True
@@ -291,7 +292,8 @@ for i_episode in itertools.count(1):
     # Reset the agent's travel distance and time for every episode
     agent.total_distance_travelled = 0
     
-    
+    # Start training timer
+    start_time = time.time()
     while not done:
         # At episode steps 0, we sampled the next intermediate route point immediately. 
         if episode_steps == 0:
@@ -365,6 +367,9 @@ for i_episode in itertools.count(1):
         
     # Reset the action sampling internal state at the end of episode
     agent.convert_action_reset()
+    
+    # Stop training timer
+    elapsed_time = time.time() - start_time
 
     ## OPTIONAL
     # Simulation steps limiter in one episode. Can be removed
@@ -379,20 +384,21 @@ for i_episode in itertools.count(1):
     #     format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2), status))
     
     # Log the training progress
-    logging.training_log(i_episode, total_numsteps, episode_steps, episode_reward, agent.total_distance_travelled, RL_env.ship_model.int.time, status)
+    logging.training_log(i_episode, elapsed_time, total_numsteps, episode_steps, episode_reward, agent.total_distance_travelled, RL_env.ship_model.int.time, status)
     
-    # CHECK REWARD AND SAVE THE POLICY WEIGHTS
+    # CHECK THE BEST REWARD AND SAVE THE POLICY WEIGHTS
     if episode_reward > best_reward:
-        best_reward = episode_reward
-        best_episode = i_episode
-        # best_policy_wegihts = agent.get_policy_weights()
+        best_reward = episode_reward # Update the best reward
+        best_episode = i_episode     # Track which episode achieved this reward
         
-        # # Save the best policy weights
-        # policy_log_path = os.path.join(log_dir, "best_policy_weights.json")
-        # with open(policy_log_path, "w") as f:
-        #     json.dump(best_policy_wegihts, f, indent=4)
+        # Define the path to save the best model
+        best_model_path = log_dir
         
-        # logging.input_log(f"New best policy saved with reward: {best_reward}")
+         # Save the best model
+        agent.save_checkpoint(log_dir, best_reward, best_episode, total_numsteps)
+
+        logging.input_log(f"New best policy saved at Episode {best_episode} with Reward: {best_reward:.2f}")
+        
         
     # SAVE THE EPISODE RECORD INTO A FILE
     logging.save_episode_record(episode_record, save_record)
@@ -465,8 +471,14 @@ for i_episode in itertools.count(1):
         # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
         break
 
-## LOG THE BEST EPISODE SIMULATION STEPS
-logging.simulation_step_log(episode_record, best_episode, log=False)
+
+####################################################################################################################################
+## LOG AND THE BEST EPISODE SIMULATION STEPS
+logging.simulation_step_log(episode_record, best_episode, log=True)
+
+# Check Chat GPT
+
+####################################################################################################################################
 
 ## Convert action_record to data frame
 all_action_record = []
