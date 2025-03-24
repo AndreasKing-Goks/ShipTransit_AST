@@ -133,6 +133,20 @@ env_config = EnvironmentConfiguration(
     wind_speed=0,
     wind_direction=0
 )
+pto_mode_params = MachineryModeParams(
+    main_engine_capacity=main_engine_capacity,
+    electrical_capacity=diesel_gen_capacity,
+    shaft_generator_state=hybrid_shaft_gen_as_offline
+)
+pto_mode = MachineryMode(params=pto_mode_params)
+
+pti_mode_params = MachineryModeParams(
+    main_engine_capacity=main_engine_capacity,
+    electrical_capacity=diesel_gen_capacity,
+    shaft_generator_state=hybrid_shaft_gen_as_offline
+)
+pti_mode = MachineryMode(params=pti_mode_params)
+
 mec_mode_params = MachineryModeParams(
     main_engine_capacity=main_engine_capacity,
     electrical_capacity=diesel_gen_capacity,
@@ -167,7 +181,7 @@ simulation_setup = SimulationConfiguration(
     initial_north_position_m=0,
     initial_east_position_m=0,
     initial_yaw_angle_rad=45 * np.pi / 180,
-    initial_forward_speed_m_per_s=7,
+    initial_forward_speed_m_per_s=0,
     initial_sideways_speed_m_per_s=0,
     initial_yaw_rate_rad_per_s=0,
     integration_step=args.time_step,
@@ -196,7 +210,7 @@ throttle_controller = EngineThrottleFromSpeedSetPoint(
 
 # Set up autopilot controller
 route_name = r'D:\OneDrive - NTNU\PhD\PhD_Projects\ShipTransit_OptiStress\ShipTransit_AST\data\start_to_end.txt'
-heading_controller_gains = HeadingControllerGains(kp=4, kd=90, ki=0.01)
+heading_controller_gains = HeadingControllerGains(kp=1, kd=90, ki=0.01)
 los_guidance_parameters = LosParameters(
     radius_of_acceptance=args.radius_of_acceptance,
     lookahead_distance=args.lookahead_distance,
@@ -240,9 +254,9 @@ if random_seed:
 # Agent while using CUDA
 agent = SAC(RL_env, args)
 
-# Tensorboard 
-writer = SummaryWriter('runs/{}_AST_SAC_{}_{}_{}'.format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"), 'Ship Transit AST_SAC',
-                                                             args.policy, "autotune" if args.automatic_entropy_tuning else ""))
+# # Tensorboard 
+# writer = SummaryWriter('runs/{}_AST_SAC_{}_{}_{}'.format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"), 'Ship Transit AST_SAC',
+#                                                              args.policy, "autotune" if args.automatic_entropy_tuning else ""))
 
 # Memory
 memory = ReplayMemory(args.replay_size, args.seed)
@@ -467,7 +481,7 @@ for i_episode in itertools.count(1):
 
         logging.evaluation_log(testing_count, avg_reward)
     
-    if i_episode == 2:
+    if i_episode == 1:
         # print(ship_model.simulation_results['power me [kw]'])
         # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
         break
@@ -645,7 +659,7 @@ axes[1].set_title('Forward Speed [m/s]')
 axes[1].set_xlabel('Time (s)')
 axes[1].set_ylabel('Forward Speed (m/s)')
 
-# Plot 1.4: Heading error
+# Plot 1.4: Rudder Angle
 axes[3].plot(results_df['time [s]'], results_df['rudder angle [deg]'])
 axes[3].set_title('Rudder angle [deg]')
 axes[3].set_xlabel('Time (s)')
@@ -653,6 +667,15 @@ axes[3].set_ylabel('Rudder angle [deg]')
 
 # print(RL_env.auto_pilot.navigate.north)
 # print(RL_env.auto_pilot.navigate.east)
+
+# Create a No.3 2x2 grid for subplots
+fig_3, axes = plt.subplots(nrows=1, ncols=2, figsize=(15, 10))
+axes = axes.flatten()  # Flatten the 2D array for easier indexing
+
+axes[0].plot(results_df['time [s]'], results_df['yaw angle [deg]'])
+axes[0].set_title('Ship heading')
+axes[0].set_xlabel('Time (s)')
+axes[0].set_ylabel('Rudder angle [deg]')
 
 # Adjust layout for better spacing
 plt.tight_layout()

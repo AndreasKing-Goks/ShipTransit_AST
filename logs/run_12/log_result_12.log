@@ -32,8 +32,6 @@
 
 ------------------------------------------------------------ TRAINING PHASE -------------------------------------------------------------
 
-Episode: 1   , Elapsed time (s):47.4, Total numsteps: 4109  , Episode steps: 4109 , Travel distanced: 6699.91, Travel time: 2054.50 Reward: 2985.22 
+Episode: 1   , Elapsed time (s):21.8, Total numsteps: 1504  , Episode steps: 1504 , Travel distanced: 6517.04, Travel time: 752.00 Reward: 247.98  
 Status: |Collision failure|
-New best policy saved at Episode 1 with Reward: 2985.22
-Episode: 2   , Elapsed time (s):21.4, Total numsteps: 5959  , Episode steps: 1850 , Travel distanced: 6055.94, Travel time: 925.00 Reward: 967.56  
-Status: |Collision failure|
+New best policy saved at Episode 1 with Reward: 247.98
