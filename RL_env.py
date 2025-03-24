@@ -90,7 +90,6 @@ class ShipRLEnv(Env):
         self.AB_alpha = np.arctan2(AB_distance_e, AB_distance_n)
         self.AB_beta = np.pi/2 - self.AB_alpha 
         self.prev_route_coordinate = None
-        
     
     def reset(self):
         # Reset the simulator and the list
@@ -300,7 +299,7 @@ class ShipRLEnv(Env):
         n_pos, e_pos, _ = pos
         
         # Directional JONSWAP reward
-        reward_jonswap = 1 # NEED ALGORITHM
+        reward_jonswap = 0 # NEED ALGORITHM
         
         # Cross-track error reward        
         # Normalized cross_track error by the tolerance
@@ -311,11 +310,31 @@ class ShipRLEnv(Env):
         # Normalized by maximum rudder angle
         reward_e_hea = -np.abs(heading_error) / self.ship_model.ship_machinery_model.rudder_ang_max
         
+        # Distance to end point
+        # Get the relative distance between the ship and the end point
+        n_route_end = self.auto_pilot.navigate.north[-1]
+        e_route_end = self.auto_pilot.navigate.east[-1]
+        distance_to_reward = np.sqrt((n_pos - n_route_end)**2 + (e_pos - e_route_end)**2)
+        
+        d_zones = [6000, 5000, 4000, 3000]
+        f_zones = [2.0, 3.0, 4.0, 5.0]
+        
+        reward_to_distance = 1
+        
+        if distance_to_reward < d_zones[0] and distance_to_reward > d_zones[1]:
+            reward_to_distance += self.AB_distance / (distance_to_reward)
+        elif distance_to_reward < d_zones[1] and distance_to_reward > d_zones[2]:
+            reward_to_distance += self.AB_distance / (distance_to_reward)
+        elif distance_to_reward < d_zones[2] and distance_to_reward > d_zones[1]:
+            reward_to_distance += self.AB_distance / (distance_to_reward)
+        elif distance_to_reward < d_zones[3]:
+            reward_to_distance += self.AB_distance/ (distance_to_reward)
+        
         # Miss distance from collision reward
         # Normalized by start_to_end distance (NOT FINAL)
         reward_col = self.obstacles.obstacles_distance(n_pos, e_pos) / self.AB_distance
         
-        return reward_jonswap + reward_e_ct + reward_e_hea + reward_col
+        return reward_jonswap + reward_e_ct + reward_e_hea + reward_col + reward_to_distance
     
     def terminal_state_reward(self,
                               pos,

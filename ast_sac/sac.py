@@ -301,20 +301,20 @@ class SAC(object):
     
         print(f"Saving best model to {ckpt_path} (Episode {best_episode}, Reward {best_reward:.2f})")
     
-        # Save model, optimizers, and training metadata
+        # Save model, optimizers, and training metadata for resuming training
         torch.save({
             'policy_state_dict': self.policy.state_dict(),
             'critic_state_dict': self.critic.state_dict(),
             'critic_target_state_dict': self.critic_target.state_dict(),
             'critic_optimizer_state_dict': self.critic_optim.state_dict(),
             'policy_optimizer_state_dict': self.policy_optim.state_dict(),
-            'best_reward': best_reward,  # Track best reward
-            'best_episode': best_episode,  # Track best episode
-            'total_steps': total_numsteps  # Track training progress
+            'best_reward': float(best_reward),  # Track best reward
+            'best_episode': int(best_episode),  # Track best episode
+            'total_steps': int(total_numsteps)  # Track training progress
         }, ckpt_path)
         
     # Load model parameters
-    def load_checkpoint(self, log_dir, suffix="best", evaluate=False):
+    def load_checkpoint(self, log_dir, suffix="best", evaluate=False, weights_only=True):
         ckpt_path = os.path.join(log_dir, f"sac_checkpoint_{suffix}.pth")
 
         if not os.path.exists(ckpt_path):
@@ -324,7 +324,7 @@ class SAC(object):
         print(f"Loading model from {ckpt_path}")
 
         # Load checkpoint
-        checkpoint = torch.load(ckpt_path)
+        checkpoint = torch.load(ckpt_path, weights_only=weights_only)
 
         # Load model weights
         self.policy.load_state_dict(checkpoint['policy_state_dict'])

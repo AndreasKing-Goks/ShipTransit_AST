@@ -230,7 +230,7 @@ RL_env = ShipRLEnv(
 
 # # Pseudorandom seeding
 random_seed = False
-# random_seed = True
+random_seed = True
 if random_seed:
     RL_env.seed(args.seed)
     RL_env.action_space.seed(args.seed)
@@ -302,6 +302,7 @@ for i_episode in itertools.count(1):
             init = False
         
         if args.start_steps > total_numsteps:
+            # action_to_simu_input is a boolean to determine wheter the action is implemented as simulation input
             action, action_to_simu_input, sampling_time_record = agent.select_action(state,
                                                                                     done,
                                                                                     init=init,
@@ -359,7 +360,7 @@ for i_episode in itertools.count(1):
         # Set the next state as current state for the next step
         state = next_state
         
-        # STORE EPISODIC_RESULTS
+        # STORE EPISODIC RESULTS
         episode_record[i_episode]["sampled_action"].append(for_record_action)
         episode_record[i_episode]["termination"].append(done)
         episode_record[i_episode]["rewards"].append(reward)
@@ -466,18 +467,78 @@ for i_episode in itertools.count(1):
 
         logging.evaluation_log(testing_count, avg_reward)
     
-    if i_episode == 5:
+    if i_episode == 2:
         # print(ship_model.simulation_results['power me [kw]'])
         # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
         break
 
 
 ####################################################################################################################################
-## LOG AND THE BEST EPISODE SIMULATION STEPS
-logging.simulation_step_log(episode_record, best_episode, log=True)
+# ## LOG AND THE BEST EPISODE SIMULATION STEPS
+# logging.simulation_step_log(episode_record, best_episode, log=False)
 
-# Check Chat GPT
+# # Load best model checkpoint (no need to train)
+# best_reward, best_episode, total_steps = agent.load_checkpoint(log_dir, evaluate=True)
 
+# # Ensure the agent is in eval mode
+# agent.policy.eval()
+
+# # Test the policy, stored as last_episode
+# last_episode = i_episode + 1
+
+# # Reset
+# state = RL_env.reset()
+# avg_reward = 0.
+# episode_reward = 0
+# episode_steps_eval = 0
+# done = False
+# while not done:
+#     if episode_steps_eval == 0:
+#         init_eval = True
+#     else:
+#         init_eval = False
+                    
+#     action, action_to_simu_input, sampling_time_record = agent.select_action(state, 
+#                                                                             done,
+#                                                                             init=init_eval,
+#                                                                             mode=2) # Policy based sampling
+#     for_record_action = action
+                
+#     # Convert action to simulation input
+#     simu_input = agent.convert_action_to_simu_input(action)
+    
+#     ## STORE SAMPLED ACTION 
+#     # The flag is needed because the action is not sampled all the time
+#     if action_to_simu_input:
+#         sampled_action_info = np.insert(simu_input, 0, action[0]) # time is not reset here
+#         sampled_action_info = np.insert(sampled_action_info, 0, RL_env.ship_model.int.time) # time is not reset here
+#         sampled_action_info[1] = sampled_action_info[1]*180/np.pi
+#         action_record[last_episode].append(sampled_action_info)
+                
+#     next_state, reward, done, _ = RL_env.step(simu_input, 
+#                                                 action_to_simu_input,
+#                                                 sampling_time_record)
+                
+#     episode_reward += reward
+                
+#     state = next_state
+                
+#     episode_steps_eval += 1
+    
+#     # STORE BEST POLICY EPISODIC RESULTS (last episode + 1)
+#     episode_record[last_episode]["sampled_action"].append(for_record_action)
+#     episode_record[last_episode]["termination"].append(done)
+#     episode_record[last_episode]["rewards"].append(reward)
+#     episode_record[last_episode]["states"].append(state.tolist())
+            
+# avg_reward += episode_reward
+            
+# # Reset the action sampling internal state at the end of episode
+# agent.convert_action_reset()
+
+# # Log the simulation steps for the test episode using best policy
+# logging.simulation_step_log(episode_record, last_episode, log=False)
+            
 ####################################################################################################################################
 
 ## Convert action_record to data frame
@@ -504,7 +565,7 @@ action_record_df["episode"] = action_record_df["episode"].astype("category")
 # route_east_list = episode_5_action_record["route_east"].tolist()
 # velocity_list = episode_5_action_record["velocity"].tolist()
 
-last_action_record = action_record_df[action_record_df["episode"] == i_episode]
+last_action_record = action_record_df[action_record_df["episode"] == best_episode] # -> Change the last episode for showing the best results
 sample_time_list = last_action_record["sample time [s]"].to_list()
 # route_shifts_list = last_action_record["route_shifts [m]"].to_list()
 scoping_angle_list = last_action_record["scoping_angle [deg]"].to_list()
