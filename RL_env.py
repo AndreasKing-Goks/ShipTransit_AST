@@ -298,17 +298,21 @@ class ShipRLEnv(Env):
         # print(pos)
         n_pos, e_pos, _ = pos
         
+        # Base stepping reward
+        reward_base = 0.1
+        
         # Directional JONSWAP reward
         reward_jonswap = 0 # NEED ALGORITHM
         
         # Cross-track error reward        
         # Normalized cross_track error by the tolerance
+        # Huge cross track error is not preferable. But when navigation loss happened give more reward
         reward_e_ct = -np.abs(los_ct_error) / self.e_tolerance 
         
         # Miss heading alignment reward
         # In radian
         # Normalized by maximum rudder angle
-        reward_e_hea = -np.abs(heading_error) / self.ship_model.ship_machinery_model.rudder_ang_max
+        # reward_e_hea = -np.abs(heading_error) / self.ship_model.ship_machinery_model.rudder_ang_max
         
         # Distance to end point
         # Get the relative distance between the ship and the end point
@@ -316,25 +320,30 @@ class ShipRLEnv(Env):
         e_route_end = self.auto_pilot.navigate.east[-1]
         distance_to_reward = np.sqrt((n_pos - n_route_end)**2 + (e_pos - e_route_end)**2)
         
-        d_zones = [6000, 5000, 4000, 3000]
-        f_zones = [2.0, 3.0, 4.0, 5.0]
+        # Closer to end point is more rewarding
+        reward_to_distance = 1 - distance_to_reward/self.AB_distance
         
-        reward_to_distance = 1
+        # d_zones = [6000, 5000, 4000, 3000]
+        # f_zones = [2.0, 3.0, 4.0, 5.0]
         
-        if distance_to_reward < d_zones[0] and distance_to_reward > d_zones[1]:
-            reward_to_distance += self.AB_distance / (distance_to_reward)
-        elif distance_to_reward < d_zones[1] and distance_to_reward > d_zones[2]:
-            reward_to_distance += self.AB_distance / (distance_to_reward)
-        elif distance_to_reward < d_zones[2] and distance_to_reward > d_zones[1]:
-            reward_to_distance += self.AB_distance / (distance_to_reward)
-        elif distance_to_reward < d_zones[3]:
-            reward_to_distance += self.AB_distance/ (distance_to_reward)
+        # reward_to_distance = 1
+        
+        # if distance_to_reward < d_zones[0] and distance_to_reward > d_zones[1]:
+        #     reward_to_distance += self.AB_distance / (distance_to_reward)
+        # elif distance_to_reward < d_zones[1] and distance_to_reward > d_zones[2]:
+        #     reward_to_distance += self.AB_distance / (distance_to_reward)
+        # elif distance_to_reward < d_zones[2] and distance_to_reward > d_zones[1]:
+        #     reward_to_distance += self.AB_distance / (distance_to_reward)
+        # elif distance_to_reward < d_zones[3]:
+        #     reward_to_distance += self.AB_distance/ (distance_to_reward)
         
         # Miss distance from collision reward
         # Normalized by start_to_end distance (NOT FINAL)
+        # Farther from collision the better. Although unintentionally close to collision is rewarded
         reward_col = self.obstacles.obstacles_distance(n_pos, e_pos) / self.AB_distance
         
-        return reward_jonswap + reward_e_ct + reward_e_hea + reward_col + reward_to_distance
+        # return reward_jonswap + reward_e_ct + reward_e_hea + reward_col + reward_to_distance
+        return reward_base + reward_jonswap + reward_e_ct + reward_col + reward_to_distance
     
     def terminal_state_reward(self,
                               pos,
@@ -370,44 +379,44 @@ class ShipRLEnv(Env):
         ## Reward for ship hitting map horizon
         # print(pos)
         if self.is_pos_outside_horizon(n_pos, e_pos):
-            reward_terminal += -1000
+            reward_terminal += 700
             done = True
             status += "|Map horizon hit failure|"
                     
         ## Reward for ship hitting obstacles
         if self.is_pos_inside_obstacles(n_pos, e_pos):
-            reward_terminal += -1000
+            reward_terminal += 700
             done = True
             status += "|Collision failure|"
             
         ## Reward for route action sampled inside obstacles or outside map horizon
         if self.is_pos_outside_horizon(n_route, e_route) or\
             self.is_pos_inside_obstacles(n_route, e_route):
-            reward_terminal += -1000
+            reward_terminal += -2500
             done = True
             status += "|Route point is sampled in terminal state|"
         
-        ## Reward for unnecessary slow ship movement
-        if self.is_too_slow(recorded_time):
-            reward_terminal += -1000
-            done = True
-            status += "|Slow progress failure|"
+        # ## Reward for unnecessary slow ship movement
+        # if self.is_too_slow(recorded_time):
+        #     reward_terminal += -1000
+        #     done = True
+        #     status += "|Slow progress failure|"
         
         ## Reward for Mechanical Failure 
         if self.is_mechanical_failure(measured_shaft_rpm):
-            reward_terminal += -1000
+            reward_terminal += 1200
             done = True
             status += "|Mechanical failure|"
         
         ## Reward for Navigation Failure    
         if self.is_navigation_failure(los_ct_error):
-            reward_terminal += -1000
+            reward_terminal += 1000
             done = True
             status += "|Navigation failure|"
         
         ## Reward for Blackout Failure    
         if self.is_blackout_failure(power_load, available_power_load):
-            reward_terminal += -1000
+            reward_terminal += 1500
             done = True
             status += "|Blackout failure|"
         
