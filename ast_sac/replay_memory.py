@@ -12,6 +12,15 @@ class ReplayMemory:
 
     def push(self, state, action, reward, next_state, done):
         # print(f"Debug (Before Storing): action shape = {action.shape}, action = {action}")
+        
+        # Reshape to a consistent shape
+        state = np.array(state, dtype=np.float32)
+        next_state = np.array(next_state, dtype=np.float32)
+
+        action = np.array([action]) if np.isscalar(action) else np.array(action, dtype=np.float32)
+        reward = float(reward)
+        done = float(done) 
+        
         if len(self.buffer) < self.capacity:
             self.buffer.append(None)
         self.buffer[self.position] = (state, action, reward, next_state, done)

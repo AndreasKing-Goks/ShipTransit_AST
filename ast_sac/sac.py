@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from numpy import ndarray
 import torch
 import torch.nn.functional as F
 from torch.optim import Adam
@@ -114,7 +115,8 @@ class SAC(object):
                     # Mode 1 = Policy-based action sampling with noise (For training only)
                     # Mode 2 = Policy-based mmean-action sampling (For evaluation only)
                     if mode == 0:
-                        action = self.env.action_space.sample()
+                        action = self.env.action_space.sample().item() if isinstance(self.env.action_space.sample(), ndarray) else self.env.action_space.sample()
+                        # action = self.env.action_space.sample()
                     elif mode == 1:
                         action, _, _ = self.policy.sample(state)
                         action = action.detach().cpu().numpy()[0]
@@ -173,7 +175,8 @@ class SAC(object):
     def convert_action_to_simu_input(self, 
                                      action):
         # Unpack action
-        chi, desired_forward_speed = action
+        # chi, desired_forward_speed = action
+        chi = action
         
         # Compute x_s and _y_s
         l_s = np.abs(self.segment_AB * np.tan(chi))
@@ -186,18 +189,23 @@ class SAC(object):
             self.x_s *= -1
         else:
             self.y_s *= -1
+        
+        # print(self.x_base, self.y_base)
+        # print(self.x_s, self.y_s)
             
         # Compute next route coordinate
         route_coord_n = self.x_base + self.x_s
         route_coord_e = self.y_base + self.y_s
-            
+        
+        
         # Update new base for the next route coordinate
         next_segment_factor = self.sampling_count + 1
         self.x_base = (self.segment_AB_north * next_segment_factor) + self.x_s
         self.y_base = (self.segment_AB_east * next_segment_factor) + self.y_s
         
         # Repack into simulation input
-        simu_input = [route_coord_n, route_coord_e, desired_forward_speed]
+        # simu_input = [route_coord_n, route_coord_e, desired_forward_speed]
+        simu_input = [route_coord_n, route_coord_e]
         
         return simu_input  
     
@@ -235,7 +243,7 @@ class SAC(object):
         self.y_s = 0
         self.x_base = self.segment_AB_north
         self.y_base = self.segment_AB_north
-        self.last_desired_forward_speed = self.env.desired_forward_speed          
+        self.last_desired_forward_speed = self.env.expected_forward_speed          
 
     def update_parameters(self, memory, batch_size, updates):
         # Sample a batch from memory
@@ -299,7 +307,7 @@ class SAC(object):
         # Define checkpoint path inside log_dir
         ckpt_path = os.path.join(log_dir, f"sac_checkpoint_{suffix}.pth")
     
-        print(f"Saving best model to {ckpt_path} (Episode {best_episode}, Reward {best_reward:.2f})")
+        print(f"Saving best model to {ckpt_path} (Episode {best_episode}, Reward {float(best_reward):.2f})")
     
         # Save model, optimizers, and training metadata for resuming training
         torch.save({

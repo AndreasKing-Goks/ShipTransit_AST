@@ -1,7 +1,7 @@
 from simulator.ship_model import  ShipConfiguration, EnvironmentConfiguration, SimulationConfiguration, ShipModelAST
 from simulator.ship_engine import MachinerySystemConfiguration, MachineryMode, MachineryModeParams, MachineryModes, SpecificFuelConsumptionBaudouin6M26Dot3, SpecificFuelConsumptionWartila6L26
 from simulator.LOS_guidance import LosParameters
-from simulator.obstacle import StaticObstacle
+from simulator.obstacle import StaticObstacle, PolygonObstacle
 from simulator.controllers import ThrottleControllerGains, HeadingControllerGains, EngineThrottleFromSpeedSetPoint, HeadingBySampledRouteController
 
 from RL_env import ShipRLEnv
@@ -44,7 +44,7 @@ parser.add_argument('--tau', type=float, default=0.005, metavar='G',
                     help='target smoothing coefficient(τ) (default: 0.005)')
 parser.add_argument('--theta', type=float, default=1.5, metavar='G',
                     help='action sampling frequency coefficient(θ) (default: 1.5)')
-parser.add_argument('--sampling_frequency', type=int, default=4, metavar='G',
+parser.add_argument('--sampling_frequency', type=int, default=9, metavar='G',
                     help='maximum amount of action sampling per episode (default: 9)')
 parser.add_argument('--max_route_resampling', type=int, default=1000, metavar='G',
                     help='maximum amount of route resampling if route is sampled inside\
@@ -194,8 +194,17 @@ ship_model = ShipModelAST(ship_config=ship_config,
                        initial_propeller_shaft_speed_rad_per_s=400 * np.pi / 30)
 
 # Place obstacles
-obstacle_data = r'D:\OneDrive - NTNU\PhD\PhD_Projects\ShipTransit_OptiStress\ShipTransit_AST\data\obstacles.txt'
-obstacles = StaticObstacle(obstacle_data)
+# obstacle_data = r'D:\OneDrive - NTNU\PhD\PhD_Projects\ShipTransit_OptiStress\ShipTransit_AST\data\obstacles.txt'
+# obstacles = StaticObstacle(obstacle_data)
+
+obstacle_data = [
+    [(0,10000), (5500,10000), (5300,9000) , (4800,8500), (4200,7300), (4000,5700), (4300, 4900), (4900,4400), (4400,4000), (3200,4100), (2000,4500), (1000,4000), (900,3500), (500,2600), (0,2350)],   # Island 1 
+    [(10000,0), (4000,0), (4250, 250), (5000,400), (6000, 900), (8000,1100), (8500,1500), (9000,2250), (9500, 3500), (10000,4000)], # Island 2
+    [(5500,5500), (5700,7000), (6200, 8100), (7500, 8000), (7800,7000), (7600, 5500), (6900,4700),(6000,5000)], # Island 3
+    [(2000,2000), (2500,2300), (4000,2500), (5000,3000), (4200,2100), (3400,1900)] # Island 4
+    ]
+
+obstacles = PolygonObstacle(obstacle_data)
 
 # Set up throttle controller
 throttle_controller_gains = ThrottleControllerGains(
@@ -262,7 +271,7 @@ agent = SAC(RL_env, args)
 memory = ReplayMemory(args.replay_size, args.seed)
 
 # Log message
-log_ID = 12
+log_ID = 13
 log_dir = f"D:\OneDrive - NTNU\PhD\PhD_Projects\ShipTransit_OptiStress\ShipTransit_AST\logs/run_{log_ID}"
 logging = LogMessage(log_dir, log_ID, args)
 save_record = True
@@ -343,14 +352,16 @@ for i_episode in itertools.count(1):
                 # writer.add_scalar('loss/entropy_loss', ent_loss, updates)
                 # writer.add_scalar('entropy_temprature/alpha', alpha, updates)
                 updates += 1   
-                        
+        
+        # print('step ',episode_steps)
+        
         # Convert action to simulation input
         simu_input = agent.convert_action_to_simu_input(action)
         
         ## STORE SAMPLED ACTION 
         # The flag is needed because the action is not sampled all the time
         if action_to_simu_input:
-            sampled_action_info = np.insert(simu_input, 0, action[0]) # time is not reset here
+            sampled_action_info = np.insert(simu_input, 0, action) # time is not reset here, add route_scoping_angle
             sampled_action_info = np.insert(sampled_action_info, 0, RL_env.ship_model.int.time) # time is not reset here
             sampled_action_info[1] = sampled_action_info[1]*180/np.pi
             action_record[i_episode].append(sampled_action_info)
@@ -423,8 +434,9 @@ for i_episode in itertools.count(1):
     
     ## Asses learning performance
     if i_episode % args.scoring_episode_every == 0 and args.eval is True:
+        status_record = [0, 0, 0, 0, 0, 0, 0] # BF, MF, NF, CF, arrival_F, terminal_route_F, not_in_terminal_f
         avg_reward = 0.
-        for _ in range (args.num_scoring_episodes):
+        for i in range (args.num_scoring_episodes):
             state = RL_env.reset()
             episode_reward = 0
             episode_steps_eval = 0
@@ -443,19 +455,31 @@ for i_episode in itertools.count(1):
                 # Convert action to simulation input
                 simu_input = agent.convert_action_to_simu_input(action)
                 
-                next_state, reward, done, _ = RL_env.step(simu_input, 
+                next_state, reward, done, status = RL_env.step(simu_input, 
                                                           action_to_simu_input,
                                                           sampling_time_record)
                 
+                
                 episode_reward += reward
                 
-                state = next_state
+                # Count the termination occurence
+                if done:
+                    if "Blackout failure" in status:
+                        status_record[0] += 1
+                    if "Mechanical failure" in status:
+                        status_record[1] += 1
+                    if "Navigation failure" in status:
+                        status_record[2] += 1
+                    if "Collision failure" in status:
+                        status_record[3] += 1
+                    if "Reach endpoint" in status:
+                        status_record[4] += 1
+                    if "Route point is sampled in terminal state" in status or "Map horizon hit failure" in status:
+                        status_record[5] += 1
+                    if "Not in terminal state" in status:
+                        status_record[6] += 1
                 
                 episode_steps_eval += 1
-                
-                # # Limit the simulator stepping to avoid infinite recursion for debugging
-                # if episode_steps_eval > args.num_steps_episode:
-                #     break
             
             avg_reward += episode_reward
             
@@ -465,33 +489,27 @@ for i_episode in itertools.count(1):
             # If we reach done=True, not only we stop the while-done loop, but also the for-episode
             # loop because the assessment is already complete within the allowed evaluation episode
             # bracket [QUESTIONABLE]
-            if done:
-                break
-            
+            # if done:
+            #     break
+        
         avg_reward /= args.num_scoring_episodes
         testing_count += 1
         
-        # FOR TENSORBOARD
-        # writer.add_scalar('avg_reward/test', avg_reward, i_episode)
+        # print(status_record)
         
-        # OLD PRINT METHOD
-        # print("----------------------------------------")
-        # print("Test Number: {}, Avg. Reward: {}".format(testing_count, round(avg_reward, 2)))
-        # print("----------------------------------------")
-
-        logging.evaluation_log(testing_count, avg_reward)
+        logging.evaluation_log(testing_count, avg_reward, status_record)
     
-    if i_episode == 1:
+    if i_episode == 29:
         # print(ship_model.simulation_results['power me [kw]'])
         # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
         break
 
 
 ####################################################################################################################################
-# ## LOG AND THE BEST EPISODE SIMULATION STEPS
+## LOG AND THE BEST EPISODE SIMULATION STEPS
 # logging.simulation_step_log(episode_record, best_episode, log=False)
 
-# # Load best model checkpoint (no need to train)
+# Load best model checkpoint (no need to train)
 # best_reward, best_episode, total_steps = agent.load_checkpoint(log_dir, evaluate=True)
 
 # # Ensure the agent is in eval mode
@@ -544,7 +562,7 @@ for i_episode in itertools.count(1):
 #     episode_record[last_episode]["termination"].append(done)
 #     episode_record[last_episode]["rewards"].append(reward)
 #     episode_record[last_episode]["states"].append(state.tolist())
-            
+
 # avg_reward += episode_reward
             
 # # Reset the action sampling internal state at the end of episode
@@ -561,7 +579,8 @@ all_action_record = []
 for episode, data in action_record.items():
     # ep_action_record_df = pd.DataFrame(data, columns=["sample time [s]", "route_north [m]", "route_east [m]", "velocity [m/s]"])
     # ep_action_record_df = pd.DataFrame(data, columns=["sample time [s]", "route_shifts [m]", "route_north [m]", "route_east [m]", "velocity [m/s]"])
-    ep_action_record_df = pd.DataFrame(data, columns=["sample time [s]", "scoping_angle [deg]", "route_north [m]", "route_east [m]", "velocity [m/s]"])
+    # ep_action_record_df = pd.DataFrame(data, columns=["sample time [s]", "scoping_angle [deg]", "route_north [m]", "route_east [m]", "velocity [m/s]"])
+    ep_action_record_df = pd.DataFrame(data, columns=["sample time [s]", "scoping_angle [deg]", "route_north [m]", "route_east [m]"])
     ep_action_record_df["episode"] = episode
     all_action_record.append(ep_action_record_df)
 
@@ -585,41 +604,41 @@ sample_time_list = last_action_record["sample time [s]"].to_list()
 scoping_angle_list = last_action_record["scoping_angle [deg]"].to_list()
 route_north_list = last_action_record["route_north [m]"].to_list()
 route_east_list = last_action_record["route_east [m]"].to_list()
-velocity_list = last_action_record["velocity [m/s]"].to_list()
+# velocity_list = last_action_record["velocity [m/s]"].to_list()
 
 ## Store the simulation results in a pandas dataframe
 results_df = pd.DataFrame().from_dict(ship_model.simulation_results)
 # print(results_df.head())
 
-# # Create a No.2 2x2 grid for subplots
-# fig_2, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
-# axes = axes.flatten()  # Flatten the 2D array for easier indexing
+# Create a No.2 2x2 grid for subplots
+fig_2, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
+axes = axes.flatten()  # Flatten the 2D array for easier indexing
 
-# # Plot 2.1: Propeller Shaft Speed
-# axes[0].plot(results_df['time [s]'], results_df['propeller shaft speed [rpm]'])
-# axes[0].set_title('Propeller Shaft Speed [rpm]')
-# axes[0].set_xlabel('Time (s)')
-# axes[0].set_ylabel('Propeller Shaft Speed (rpm)')
+# Plot 2.1: Propeller Shaft Speed
+axes[0].plot(results_df['time [s]'], results_df['propeller shaft speed [rpm]'])
+axes[0].set_title('Propeller Shaft Speed [rpm]')
+axes[0].set_xlabel('Time (s)')
+axes[0].set_ylabel('Propeller Shaft Speed (rpm)')
 
-# # Plot 2.2: Power vs Available Power
-# axes[2].plot(results_df['time [s]'], results_df['power me [kw]'], label="Power")
-# axes[2].plot(results_df['time [s]'], results_df['available power me [kw]'], label="Available Power")
-# axes[2].set_title('Power vs Available Power [kw]')
-# axes[2].set_xlabel('Time (s)')
-# axes[2].set_ylabel('Power (kw)')
-# axes[2].legend()
+# Plot 2.2: Power vs Available Power
+axes[2].plot(results_df['time [s]'], results_df['power me [kw]'], label="Power")
+axes[2].plot(results_df['time [s]'], results_df['available power me [kw]'], label="Available Power")
+axes[2].set_title('Power vs Available Power [kw]')
+axes[2].set_xlabel('Time (s)')
+axes[2].set_ylabel('Power (kw)')
+axes[2].legend()
 
-# # Plot 2.3: Cross Track error
-# axes[1].plot(results_df['time [s]'], results_df['cross track error [m]'])
-# axes[1].set_title('Cross Track Error [m]')
-# axes[1].set_xlabel('Time (s)')
-# axes[1].set_ylabel('Cross track error (m)')
+# Plot 2.3: Cross Track error
+axes[1].plot(results_df['time [s]'], results_df['cross track error [m]'])
+axes[1].set_title('Cross Track Error [m]')
+axes[1].set_xlabel('Time (s)')
+axes[1].set_ylabel('Cross track error (m)')
 
-# # Plot 2.4: Fuel Consumption
-# axes[3].plot(results_df['time [s]'], results_df['fuel consumption [kg]'])
-# axes[3].set_title('Fuel Consumption [kg]')
-# axes[3].set_xlabel('Time (s)')
-# axes[3].set_ylabel('Fuel Consumption (kg)')
+# Plot 2.4: Fuel Consumption
+axes[3].plot(results_df['time [s]'], results_df['fuel consumption [kg]'])
+axes[3].set_title('Fuel Consumption [kg]')
+axes[3].set_xlabel('Time (s)')
+axes[3].set_ylabel('Fuel Consumption (kg)')
 
 # Create a No.1 2x2 grid for subplots
 fig_1, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
@@ -631,6 +650,8 @@ axes[0].scatter(auto_pilot.navigate.east, auto_pilot.navigate.north, marker='x',
 for x, y in zip(ship_model.ship_drawings[1], ship_model.ship_drawings[0]):
     axes[0].plot(x, y, color='black')
 obstacles.plot_obstacle(axes[0])
+axes[0].set_xlim(0,10000)
+axes[0].set_ylim(0,10000)
 axes[0].set_title('Ship Trajectory with the Sampled Route')
 axes[0].set_xlabel('East position (m)')
 axes[0].set_ylabel('North position (m)')
@@ -644,14 +665,19 @@ for i, (east, north) in enumerate(zip(auto_pilot.navigate.east, auto_pilot.navig
         string = str(i)
     # Else, include the sampling detail (point index between start and end point)
     else:
-        string = f"{i}, vel={velocity_list[i-1]:.2f} m/s, time={sample_time_list[i-1]:.1f} s"
+        # string = f"{i}, vel={velocity_list[i-1]:.2f} m/s, time={sample_time_list[i-1]:.1f} s"
+        string = f"{i}, time={sample_time_list[i-1]:.1f} s"
     
     axes[2].text(east, north, string, fontsize=8, ha='left', color='blue')  # Label with index
     radius_circle = Circle((east, north), args.radius_of_acceptance, color='red', alpha=0.3, fill=True)
     axes[2].add_patch(radius_circle)
+obstacles.plot_obstacle(axes[2])
+axes[2].set_xlim(0,10000)
+axes[2].set_ylim(0,10000)
 axes[2].set_title('Sampled Route with the Order')
 axes[2].set_xlabel('East position (m)')
 axes[2].set_ylabel('North position (m)')
+axes[2].set_aspect('equal')
 
 # Plot 1.3: Forward Speed
 axes[1].plot(results_df['time [s]'], results_df['forward speed [m/s]'])
@@ -668,14 +694,14 @@ axes[3].set_ylabel('Rudder angle [deg]')
 # print(RL_env.auto_pilot.navigate.north)
 # print(RL_env.auto_pilot.navigate.east)
 
-# Create a No.3 2x2 grid for subplots
-fig_3, axes = plt.subplots(nrows=1, ncols=2, figsize=(15, 10))
-axes = axes.flatten()  # Flatten the 2D array for easier indexing
+# # Create a No.3 2x2 grid for subplots
+# fig_3, axes = plt.subplots(nrows=1, ncols=2, figsize=(15, 10))
+# axes = axes.flatten()  # Flatten the 2D array for easier indexing
 
-axes[0].plot(results_df['time [s]'], results_df['yaw angle [deg]'])
-axes[0].set_title('Ship heading')
-axes[0].set_xlabel('Time (s)')
-axes[0].set_ylabel('Rudder angle [deg]')
+# axes[0].plot(results_df['time [s]'], results_df['yaw angle [deg]'])
+# axes[0].set_title('Ship heading')
+# axes[0].set_xlabel('Time (s)')
+# axes[0].set_ylabel('Rudder angle [deg]')
 
 # Adjust layout for better spacing
 plt.tight_layout()

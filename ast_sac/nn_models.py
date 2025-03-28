@@ -48,7 +48,11 @@ class QNetwork(nn.Module):
     def forward(self, state, action):
         # print(f"State batch shape: {state.shape}")
         # print(f"Action batch shape: {action.shape}")
-
+        
+        # Ensure action is always 2D - QUICK FIX
+        if action.dim() == 1:
+            action = action.unsqueeze(1)
+        
         xu = torch.cat([state, action], 1)
         
         # print(f"Concatenated input shape (xu): {xu.shape}")

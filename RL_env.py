@@ -12,7 +12,7 @@ import torch
 
 from simulator.ship_model import ShipModelAST
 from simulator.controllers import EngineThrottleFromSpeedSetPoint, HeadingBySampledRouteController
-from simulator.obstacle import StaticObstacle
+from simulator.obstacle import StaticObstacle, PolygonObstacle
 # from ast_sac.reward_function import reward_function
 
 
@@ -24,7 +24,7 @@ class ShipRLEnv(Env):
                  ship_model: ShipModelAST,
                  auto_pilot: HeadingBySampledRouteController,
                  throttle_controller: EngineThrottleFromSpeedSetPoint,
-                 obstacles: StaticObstacle,
+                 obstacles: PolygonObstacle,
                  integrator_term:list,
                  times:list,
                  ship_draw:bool,
@@ -66,10 +66,16 @@ class ShipRLEnv(Env):
         #     high = np.array([10000/np.sqrt(2), 8], dtype=np.float32),
         # )
         
+        # # Define action space [route_point_shift, desired_speed]
+        # self.action_space = Box(
+        #     low = np.array([-np.pi/6, 0], dtype=np.float32),
+        #     high = np.array([np.pi/6, 8], dtype=np.float32),
+        # )
+        
         # Define action space [route_point_shift, desired_speed]
         self.action_space = Box(
-            low = np.array([-np.pi/6, 0], dtype=np.float32),
-            high = np.array([np.pi/6, 8], dtype=np.float32),
+            low = np.array([-np.pi/4], dtype=np.float32),
+            high = np.array([np.pi/4], dtype=np.float32),
         )
         
         # Define initial state
@@ -90,6 +96,8 @@ class ShipRLEnv(Env):
         self.AB_alpha = np.arctan2(AB_distance_e, AB_distance_n)
         self.AB_beta = np.pi/2 - self.AB_alpha 
         self.prev_route_coordinate = None
+        
+        self.i = 0
     
     def reset(self):
         # Reset the simulator and the list
@@ -131,14 +139,15 @@ class ShipRLEnv(Env):
             # Unpack simulation input
             # if len(simu_input) != 3:
             #     print(f" Debug: Invalid simu_input = {simu_input}, length = {len(simu_input)}")
-            route_coord_n, route_coord_e, desired_forward_speed = simu_input
-        
+            # route_coord_n, route_coord_e, desired_forward_speed = simu_input
+            route_coord_n, route_coord_e = simu_input
+            
             # Update route_point based on the action
             route_coordinate = route_coord_n, route_coord_e
             self.auto_pilot.update_route(route_coordinate)
             
             # Update desired_forward_speed based on the action
-            self.desired_forward_speed = desired_forward_speed
+            # self.desired_forward_speed = desired_forward_speed
             
             # Store the sampled route coordinate to the holder variable
             self.prev_route_coordinate = route_coordinate
@@ -160,7 +169,7 @@ class ShipRLEnv(Env):
         )
         
         throttle = self.throttle_controller.throttle(
-            speed_set_point = self.desired_forward_speed,
+            speed_set_point = self.expected_forward_speed,
             measured_speed = forward_speed,
             measured_shaft_speed = forward_speed
         )
@@ -191,7 +200,19 @@ class ShipRLEnv(Env):
         power_load = self.ship_model.simulation_results['power me [kw]'][-1]
         available_power_load = self.ship_model.simulation_results['available power me [kw]'][-1]
         
-        next_state = np.array([pos[0], pos[1], pos[2], self.ship_model.forward_speed, measured_shaft_rpm, los_ct_error, power_load]) 
+        # self.i +=1
+        # # if self.i == 668:
+        # #     print(self.ship_model.simulation_results['cross track error [m]'])
+        # # print(los_ct_error, self.i)
+        # print('count', self.i)
+        
+        next_state = np.array([self.ensure_scalar(pos[0]), 
+                               self.ensure_scalar(pos[1]), 
+                               self.ensure_scalar(pos[2]), 
+                               self.ensure_scalar(self.ship_model.forward_speed), 
+                               self.ensure_scalar(measured_shaft_rpm), 
+                               self.ensure_scalar(los_ct_error),
+                               self.ensure_scalar(power_load)], dtype=np.float32) 
         
         reward, done, status = self.reward_function(pos,
                                                     route_coordinate,
@@ -211,11 +232,15 @@ class ShipRLEnv(Env):
         """Set the random seed for reproducibility"""
         self.np_random, seed = seeding.np_random(seed)
         
+    # Make sure all values are scalars
+    def ensure_scalar(self, x):
+        return float(x[0]) if isinstance(x, (np.ndarray, list)) else float(x)
+        
 ###################################################################################################################
 ############################################### FAILURE MODES #####################################################
 ###################################################################################################################
         
-    def is_pos_outside_horizon(self, n_pos, e_pos, margin=100):
+    def is_pos_outside_horizon(self, n_pos, e_pos, margin=0):
         ''' Checks if the ship positions are outside the map horizon. 
             Map horizons are determined by the edge point of the determined route point. 
             Allowed additional margin are default 100 m for North and East boundaries.
@@ -229,8 +254,8 @@ class ShipRLEnv(Env):
         e_route_bound = [e_route_point[0]-margin, e_route_point[-1]+margin]
         
         # Check if position is outside bound
-        outside_n = n_pos <= n_route_bound[0] or n_pos >= n_route_bound[1]
-        outside_e = e_pos <= e_route_bound[0] or e_pos >= e_route_bound[1]
+        outside_n = n_pos < n_route_bound[0] or n_pos > n_route_bound[1]
+        outside_e = e_pos < e_route_bound[0] or e_pos > e_route_bound[1]
         
         is_outside = outside_n or outside_e
         
@@ -343,7 +368,7 @@ class ShipRLEnv(Env):
         reward_col = self.obstacles.obstacles_distance(n_pos, e_pos) / self.AB_distance
         
         # return reward_jonswap + reward_e_ct + reward_e_hea + reward_col + reward_to_distance
-        return reward_base + reward_jonswap + reward_e_ct + reward_col + reward_to_distance
+        return float(reward_base + reward_jonswap + reward_e_ct + reward_col + reward_to_distance)
     
     def terminal_state_reward(self,
                               pos,
@@ -374,27 +399,30 @@ class ShipRLEnv(Env):
         if relative_dist <= arrival_radius:
             reward_terminal += 1000
             done = True
-            status += "|Reach endpoint|"
+            status = "|Reach endpoint|"
             
         ## Reward for ship hitting map horizon
         # print(pos)
         if self.is_pos_outside_horizon(n_pos, e_pos):
             reward_terminal += 700
             done = True
-            status += "|Map horizon hit failure|"
+            status = "|Map horizon hit failure|"
                     
         ## Reward for ship hitting obstacles
-        if self.is_pos_inside_obstacles(n_pos, e_pos):
+        # if self.is_pos_inside_obstacles(n_pos, e_pos): # When using circular obstacle
+        if self.obstacles.if_pos_inside_obstacles(n_pos, e_pos): # When using polygon obstacle
             reward_terminal += 700
             done = True
-            status += "|Collision failure|"
+            status = "|Collision failure|"
             
         ## Reward for route action sampled inside obstacles or outside map horizon
+        # if self.is_pos_outside_horizon(n_route, e_route) or\
+        #     self.is_pos_inside_obstacles(n_route, e_route): # When using circular obstacle
         if self.is_pos_outside_horizon(n_route, e_route) or\
-            self.is_pos_inside_obstacles(n_route, e_route):
+            self.obstacles.if_pos_inside_obstacles(n_route, e_route): # When using polygon obstacle
             reward_terminal += -2500
             done = True
-            status += "|Route point is sampled in terminal state|"
+            status = "|Route point is sampled in terminal state|"
         
         # ## Reward for unnecessary slow ship movement
         # if self.is_too_slow(recorded_time):
@@ -406,19 +434,19 @@ class ShipRLEnv(Env):
         if self.is_mechanical_failure(measured_shaft_rpm):
             reward_terminal += 1200
             done = True
-            status += "|Mechanical failure|"
+            status = "|Mechanical failure|"
         
         ## Reward for Navigation Failure    
         if self.is_navigation_failure(los_ct_error):
             reward_terminal += 1000
             done = True
-            status += "|Navigation failure|"
+            status = "|Navigation failure|"
         
         ## Reward for Blackout Failure    
         if self.is_blackout_failure(power_load, available_power_load):
             reward_terminal += 1500
             done = True
-            status += "|Blackout failure|"
+            status = "|Blackout failure|"
         
         if done == False:
             status = "|Not in terminal state|"

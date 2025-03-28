@@ -83,16 +83,38 @@ class LogMessage:
                      travel_distance,
                      travel_time,
                      status):
-        reward = round(episode_reward, 2)
+        
+        # reward = round(episode_reward.item(), 2) if isinstance(episode_reward, np.ndarray) else round(episode_reward, 2)
+        reward = round(float(episode_reward), 2)
         self.input_log(f"Episode: {i_episode:<4}, Elapsed time (s):{elapsed_time:<3.1f}, Total numsteps: {total_numsteps:<6}, Episode steps: {episode_steps:<5}, Travel distanced: {travel_distance:<6.2f}, Travel time: {travel_time:<5.2f} Reward: {reward:<8.2f}")
         self.input_log(f"Status:{status}")
     
     def evaluation_log(self,
                        testing_count,
-                       avg_reward):
+                       avg_reward,
+                       status_record):
+        BF_ratio = status_record[0]/np.sum(status_record)*100
+        MF_ratio = status_record[1]/np.sum(status_record)*100
+        NF_ratio = status_record[2]/np.sum(status_record)*100
+        CF_ratio = status_record[3]/np.sum(status_record)*100
+        
+        arrival_ratio = status_record[4]/np.sum(status_record)*100
+        terminal_route_ratio = status_record[5]/np.sum(status_record)*100
+        not_in_terminal_ratio = status_record[6]/np.sum(status_record)*100
+        
         self.input_log("") 
         self.input_log("----------------------------------------------------------- EVALUATION PHASE ------------------------------------------------------------")
         self.input_log(f"Test Number: {testing_count}, Avg. Reward: {round(avg_reward, 2):.2f}")
+        self.input_log(f"* Failure Mode Encounters")
+        self.input_log(f"- Blackout Failure      : {BF_ratio:.1f}%")
+        self.input_log(f"- Mechanical Failure    : {MF_ratio:.1f}%")
+        self.input_log(f"- Navigation Failure    : {NF_ratio:.1f}%")
+        self.input_log(f"- Collision Failure     : {CF_ratio:.1f}%")
+        self.input_log("")
+        self.input_log(f"* Other status")
+        self.input_log(f"- Reaching endpoint     : {arrival_ratio:.1f}%")
+        self.input_log(f"- False route sampling  : {terminal_route_ratio:.1f}%")
+        self.input_log(f"- Not in terminal state : {not_in_terminal_ratio:.1f}%")
         self.input_log("-----------------------------------------------------------------------------------------------------------------------------------------")
         self.input_log("") 
     

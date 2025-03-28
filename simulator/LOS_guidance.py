@@ -135,32 +135,32 @@ class NavigationSystem:
         
         self.load_waypoints(self.route)
     
-class StaticObstacle:
-    ''' This class is used to define a static obstacle. It can only make
-        circular obstacles. The class is instantiated with the following
-        input paramters:
-        - n_pos: The north coordinate of the center of the obstacle.
-        - e_pos: The east coordinate of the center of the obstacle.
-        - radius: The radius of the obstacle.
-    '''
+# class StaticObstacle:
+#     ''' This class is used to define a static obstacle. It can only make
+#         circular obstacles. The class is instantiated with the following
+#         input paramters:
+#         - n_pos: The north coordinate of the center of the obstacle.
+#         - e_pos: The east coordinate of the center of the obstacle.
+#         - radius: The radius of the obstacle.
+#     '''
 
-    def __init__(self, n_pos, e_pos, radius):
-        self.n = n_pos
-        self.e = e_pos
-        self.r = radius
+#     def __init__(self, n_pos, e_pos, radius):
+#         self.n = n_pos
+#         self.e = e_pos
+#         self.r = radius
 
-    def distance(self, n_ship, e_ship):
-        ''' Returns the distance from a ship with coordinates (north, east)=
-            (n_ship, e_ship), to the closest point on the perifery of the
-            circular obstacle.
-        '''
-        rad_2 = (n_ship - self.n) ** 2 + (e_ship - self.e) ** 2
-        rad = np.sqrt(abs(rad_2))
-        return rad - self.r
+#     def distance(self, n_ship, e_ship):
+#         ''' Returns the distance from a ship with coordinates (north, east)=
+#             (n_ship, e_ship), to the closest point on the perifery of the
+#             circular obstacle.
+#         '''
+#         rad_2 = (n_ship - self.n) ** 2 + (e_ship - self.e) ** 2
+#         rad = np.sqrt(abs(rad_2))
+#         return rad - self.r
 
-    def plot_obst(self, ax):
-        ''' This method can be used to plot the obstacle in a
-            map-view.
-        '''
-        # ax = plt.gca()
-        ax.add_patch(plt.Circle((self.e, self.n), radius=self.r, fill=True, color='grey'))
+#     def plot_obst(self, ax):
+#         ''' This method can be used to plot the obstacle in a
+#             map-view.
+#         '''
+#         # ax = plt.gca()
+#         ax.add_patch(plt.Circle((self.e, self.n), radius=self.r, fill=True, color='grey'))

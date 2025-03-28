@@ -5,7 +5,7 @@
  Reward discount factor (gamma)                : 0.99
  Target smoothing coefficient (tau)            : 0.005
  Action sampling frequency coefficient (theta) : 1.5
- Maximum action sampling count per episode     : 4
+ Maximum action sampling count per episode     : 9
  RL learning rate                              : 0.0003
  SAC's entropy temperature parameters (alpha)  : 0.2
  Do automatic entroypy tuning                  : True
@@ -32,6 +32,239 @@
 
 ------------------------------------------------------------ TRAINING PHASE -------------------------------------------------------------
 
-Episode: 1   , Elapsed time (s):21.8, Total numsteps: 1504  , Episode steps: 1504 , Travel distanced: 6517.04, Travel time: 752.00 Reward: 247.98  
-Status: |Collision failure|
-New best policy saved at Episode 1 with Reward: 247.98
+Episode: 1   , Elapsed time (s):10.0, Total numsteps: 868   , Episode steps: 868  , Travel distanced: 3469.38, Travel time: 434.00 Reward: 832.53  
+Status:|Collision failure|
+New best policy saved at Episode 1 with Reward: 832.53
+Episode: 2   , Elapsed time (s):13.7, Total numsteps: 1972  , Episode steps: 1104 , Travel distanced: 4637.38, Travel time: 552.00 Reward: 895.34  
+Status:|Collision failure|
+New best policy saved at Episode 2 with Reward: 895.34
+Episode: 3   , Elapsed time (s):12.1, Total numsteps: 2927  , Episode steps: 955  , Travel distanced: 3896.93, Travel time: 477.50 Reward: 807.00  
+Status:|Collision failure|
+Episode: 4   , Elapsed time (s):27.4, Total numsteps: 5197  , Episode steps: 2270 , Travel distanced: 10626.34, Travel time: 1135.00 Reward: -1971.21
+Status:|Route point is sampled in terminal state|
+Episode: 5   , Elapsed time (s):12.3, Total numsteps: 6217  , Episode steps: 1020 , Travel distanced: 4243.94, Travel time: 510.00 Reward: -2356.52
+Status:|Route point is sampled in terminal state|
+Episode: 6   , Elapsed time (s):13.9, Total numsteps: 7375  , Episode steps: 1158 , Travel distanced: 4910.66, Travel time: 579.00 Reward: 808.53  
+Status:|Collision failure|
+Episode: 7   , Elapsed time (s):17.2, Total numsteps: 8796  , Episode steps: 1421 , Travel distanced: 6368.31, Travel time: 710.50 Reward: -2451.69
+Status:|Route point is sampled in terminal state|
+Episode: 8   , Elapsed time (s):9.5, Total numsteps: 9570  , Episode steps: 774  , Travel distanced: 2951.44, Travel time: 387.00 Reward: 831.01  
+Status:|Collision failure|
+Episode: 9   , Elapsed time (s):7.2, Total numsteps: 10170 , Episode steps: 600  , Travel distanced: 2123.10, Travel time: 300.00 Reward: -2373.52
+Status:|Route point is sampled in terminal state|
+Episode: 10  , Elapsed time (s):3.7, Total numsteps: 10465 , Episode steps: 295  , Travel distanced: 761.19, Travel time: 147.50 Reward: 762.38  
+Status:|Map horizon hit failure|
+Episode: 11  , Elapsed time (s):3.1, Total numsteps: 10700 , Episode steps: 235  , Travel distanced: 521.88, Travel time: 117.50 Reward: 753.23  
+Status:|Map horizon hit failure|
+Episode: 12  , Elapsed time (s):2.8, Total numsteps: 10919 , Episode steps: 219  , Travel distanced: 462.97, Travel time: 109.50 Reward: 751.24  
+Status:|Map horizon hit failure|
+Episode: 13  , Elapsed time (s):3.0, Total numsteps: 11158 , Episode steps: 239  , Travel distanced: 536.97, Travel time: 119.50 Reward: 755.00  
+Status:|Map horizon hit failure|
+Episode: 14  , Elapsed time (s):2.8, Total numsteps: 11378 , Episode steps: 220  , Travel distanced: 466.55, Travel time: 110.00 Reward: 753.15  
+Status:|Map horizon hit failure|
+Episode: 15  , Elapsed time (s):12.5, Total numsteps: 12422 , Episode steps: 1044 , Travel distanced: 4507.06, Travel time: 522.00 Reward: 766.57  
+Status:|Collision failure|
+Episode: 16  , Elapsed time (s):3.5, Total numsteps: 12699 , Episode steps: 277  , Travel distanced: 686.84, Travel time: 138.50 Reward: 765.12  
+Status:|Map horizon hit failure|
+Episode: 17  , Elapsed time (s):3.0, Total numsteps: 12932 , Episode steps: 233  , Travel distanced: 514.37, Travel time: 116.50 Reward: 756.03  
+Status:|Map horizon hit failure|
+Episode: 18  , Elapsed time (s):2.8, Total numsteps: 13156 , Episode steps: 224  , Travel distanced: 481.25, Travel time: 112.00 Reward: 755.60  
+Status:|Map horizon hit failure|
+Episode: 19  , Elapsed time (s):32.6, Total numsteps: 15919 , Episode steps: 2763 , Travel distanced: 13027.75, Travel time: 1381.50 Reward: 1378.34 
+Status:|Map horizon hit failure|
+New best policy saved at Episode 19 with Reward: 1378.34
+Episode: 20  , Elapsed time (s):5.3, Total numsteps: 16335 , Episode steps: 416  , Travel distanced: 1306.21, Travel time: 208.00 Reward: 785.03  
+Status:|Map horizon hit failure|
+
+----------------------------------------------------------- EVALUATION PHASE ------------------------------------------------------------
+Test Number: 1, Avg. Reward: 752.61
+* Failure Mode Encounters
+- Blackout Failure      : 0.0%
+- Mechanical Failure    : 0.0%
+- Navigation Failure    : 0.0%
+- Collision Failure     : 0.0%
+
+* Other status
+- Reaching endpoint     : 0.0%
+- False route sampling  : 100.0%
+- Not in terminal state : 0.0%
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+Episode: 21  , Elapsed time (s):2.6, Total numsteps: 16533 , Episode steps: 198  , Travel distanced: 389.67, Travel time: 99.00 Reward: 748.62  
+Status:|Map horizon hit failure|
+Episode: 22  , Elapsed time (s):2.5, Total numsteps: 16731 , Episode steps: 198  , Travel distanced: 389.67, Travel time: 99.00 Reward: 746.96  
+Status:|Map horizon hit failure|
+Episode: 23  , Elapsed time (s):2.5, Total numsteps: 16934 , Episode steps: 203  , Travel distanced: 407.00, Travel time: 101.50 Reward: 733.08  
+Status:|Map horizon hit failure|
+Episode: 24  , Elapsed time (s):2.6, Total numsteps: 17133 , Episode steps: 199  , Travel distanced: 393.19, Travel time: 99.50 Reward: 747.42  
+Status:|Map horizon hit failure|
+Episode: 25  , Elapsed time (s):2.5, Total numsteps: 17337 , Episode steps: 204  , Travel distanced: 410.18, Travel time: 102.00 Reward: 740.16  
+Status:|Map horizon hit failure|
+Episode: 26  , Elapsed time (s):3.0, Total numsteps: 17580 , Episode steps: 243  , Travel distanced: 552.44, Travel time: 121.50 Reward: 728.25  
+Status:|Map horizon hit failure|
+Episode: 27  , Elapsed time (s):7.9, Total numsteps: 18241 , Episode steps: 661  , Travel distanced: 2541.36, Travel time: 330.50 Reward: 687.05  
+Status:|Map horizon hit failure|
+Episode: 28  , Elapsed time (s):32.4, Total numsteps: 20992 , Episode steps: 2751 , Travel distanced: 12997.32, Travel time: 1375.50 Reward: 1472.73 
+Status:|Map horizon hit failure|
+New best policy saved at Episode 28 with Reward: 1472.73
+Episode: 29  , Elapsed time (s):37.6, Total numsteps: 24213 , Episode steps: 3221 , Travel distanced: 15505.00, Travel time: 1610.50 Reward: 1580.72 
+Status:|Map horizon hit failure|
+New best policy saved at Episode 29 with Reward: 1580.72
+Episode: 30  , Elapsed time (s):3.6, Total numsteps: 24489 , Episode steps: 276  , Travel distanced: 682.99, Travel time: 138.00 Reward: 763.77  
+Status:|Map horizon hit failure|
+Episode: 31  , Elapsed time (s):39.2, Total numsteps: 27715 , Episode steps: 3226 , Travel distanced: 15501.73, Travel time: 1613.00 Reward: 1551.92 
+Status:|Map horizon hit failure|
+Episode: 32  , Elapsed time (s):2.9, Total numsteps: 27941 , Episode steps: 226  , Travel distanced: 488.64, Travel time: 113.00 Reward: 755.84  
+Status:|Map horizon hit failure|
+Episode: 33  , Elapsed time (s):2.5, Total numsteps: 28152 , Episode steps: 211  , Travel distanced: 434.73, Travel time: 105.50 Reward: 751.33  
+Status:|Map horizon hit failure|
+Episode: 34  , Elapsed time (s):2.6, Total numsteps: 28359 , Episode steps: 207  , Travel distanced: 420.40, Travel time: 103.50 Reward: 751.39  
+Status:|Map horizon hit failure|
+Episode: 35  , Elapsed time (s):15.3, Total numsteps: 29665 , Episode steps: 1306 , Travel distanced: 5669.60, Travel time: 653.00 Reward: 666.04  
+Status:|Collision failure|
+Episode: 36  , Elapsed time (s):32.3, Total numsteps: 32377 , Episode steps: 2712 , Travel distanced: 12779.54, Travel time: 1356.00 Reward: 1547.55 
+Status:|Map horizon hit failure|
+Episode: 37  , Elapsed time (s):33.4, Total numsteps: 35126 , Episode steps: 2749 , Travel distanced: 12983.46, Travel time: 1374.50 Reward: 1473.08 
+Status:|Map horizon hit failure|
+Episode: 38  , Elapsed time (s):43.3, Total numsteps: 38349 , Episode steps: 3223 , Travel distanced: 15509.70, Travel time: 1611.50 Reward: 1571.12 
+Status:|Map horizon hit failure|
+Episode: 39  , Elapsed time (s):40.7, Total numsteps: 41578 , Episode steps: 3229 , Travel distanced: 15526.51, Travel time: 1614.50 Reward: 1563.59 
+Status:|Map horizon hit failure|
+Episode: 40  , Elapsed time (s):38.0, Total numsteps: 44537 , Episode steps: 2959 , Travel distanced: 14028.15, Travel time: 1479.50 Reward: 1515.37 
+Status:|Map horizon hit failure|
+
+----------------------------------------------------------- EVALUATION PHASE ------------------------------------------------------------
+Test Number: 2, Avg. Reward: 1088.37
+* Failure Mode Encounters
+- Blackout Failure      : 0.0%
+- Mechanical Failure    : 0.0%
+- Navigation Failure    : 0.0%
+- Collision Failure     : 100.0%
+
+* Other status
+- Reaching endpoint     : 0.0%
+- False route sampling  : 0.0%
+- Not in terminal state : 0.0%
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+Episode: 41  , Elapsed time (s):40.5, Total numsteps: 47646 , Episode steps: 3109 , Travel distanced: 14930.16, Travel time: 1554.50 Reward: 1857.20 
+Status:|Navigation failure|
+New best policy saved at Episode 41 with Reward: 1857.20
+Episode: 42  , Elapsed time (s):38.4, Total numsteps: 50612 , Episode steps: 2966 , Travel distanced: 14116.34, Travel time: 1483.00 Reward: 1484.28 
+Status:|Map horizon hit failure|
+Episode: 43  , Elapsed time (s):41.6, Total numsteps: 53725 , Episode steps: 3113 , Travel distanced: 14916.35, Travel time: 1556.50 Reward: 1848.32 
+Status:|Navigation failure|
+Episode: 44  , Elapsed time (s):4.1, Total numsteps: 54014 , Episode steps: 289  , Travel distanced: 736.37, Travel time: 144.50 Reward: 770.77  
+Status:|Map horizon hit failure|
+Episode: 45  , Elapsed time (s):39.5, Total numsteps: 57008 , Episode steps: 2994 , Travel distanced: 14306.20, Travel time: 1497.00 Reward: 1439.86 
+Status:|Map horizon hit failure|
+Episode: 46  , Elapsed time (s):36.7, Total numsteps: 59734 , Episode steps: 2726 , Travel distanced: 12843.76, Travel time: 1363.00 Reward: 1506.01 
+Status:|Map horizon hit failure|
+Episode: 47  , Elapsed time (s):38.6, Total numsteps: 62496 , Episode steps: 2762 , Travel distanced: 13057.57, Travel time: 1381.00 Reward: 1463.47 
+Status:|Map horizon hit failure|
+Episode: 48  , Elapsed time (s):45.2, Total numsteps: 65611 , Episode steps: 3115 , Travel distanced: 14953.39, Travel time: 1557.50 Reward: 1853.79 
+Status:|Navigation failure|
+Episode: 49  , Elapsed time (s):39.9, Total numsteps: 68356 , Episode steps: 2745 , Travel distanced: 12963.79, Travel time: 1372.50 Reward: 1480.37 
+Status:|Map horizon hit failure|
+Episode: 50  , Elapsed time (s):41.7, Total numsteps: 71467 , Episode steps: 3111 , Travel distanced: 14928.32, Travel time: 1555.50 Reward: 1852.09 
+Status:|Navigation failure|
+Episode: 51  , Elapsed time (s):39.3, Total numsteps: 74208 , Episode steps: 2741 , Travel distanced: 12941.48, Travel time: 1370.50 Reward: 1486.02 
+Status:|Map horizon hit failure|
+Episode: 52  , Elapsed time (s):56.3, Total numsteps: 77168 , Episode steps: 2960 , Travel distanced: 14066.43, Travel time: 1480.00 Reward: 1510.92 
+Status:|Map horizon hit failure|
+Episode: 53  , Elapsed time (s):41.5, Total numsteps: 80273 , Episode steps: 3105 , Travel distanced: 14866.14, Travel time: 1552.50 Reward: 1857.72 
+Status:|Navigation failure|
+New best policy saved at Episode 53 with Reward: 1857.72
+Episode: 54  , Elapsed time (s):35.8, Total numsteps: 82987 , Episode steps: 2714 , Travel distanced: 12788.20, Travel time: 1357.00 Reward: 1544.36 
+Status:|Map horizon hit failure|
+Episode: 55  , Elapsed time (s):3.3, Total numsteps: 83244 , Episode steps: 257  , Travel distanced: 606.58, Travel time: 128.50 Reward: 762.67  
+Status:|Map horizon hit failure|
+Episode: 56  , Elapsed time (s):43.4, Total numsteps: 86200 , Episode steps: 2956 , Travel distanced: 14011.03, Travel time: 1478.00 Reward: 1527.25 
+Status:|Map horizon hit failure|
+Episode: 57  , Elapsed time (s):45.6, Total numsteps: 88927 , Episode steps: 2727 , Travel distanced: 12835.59, Travel time: 1363.50 Reward: 1452.16 
+Status:|Map horizon hit failure|
+Episode: 58  , Elapsed time (s):43.0, Total numsteps: 91887 , Episode steps: 2960 , Travel distanced: 14063.53, Travel time: 1480.00 Reward: 1509.93 
+Status:|Map horizon hit failure|
+Episode: 59  , Elapsed time (s):3.9, Total numsteps: 92118 , Episode steps: 231  , Travel distanced: 507.08, Travel time: 115.50 Reward: 757.48  
+Status:|Map horizon hit failure|
+Episode: 60  , Elapsed time (s):3.5, Total numsteps: 92335 , Episode steps: 217  , Travel distanced: 455.76, Travel time: 108.50 Reward: 753.78  
+Status:|Map horizon hit failure|
+
+----------------------------------------------------------- EVALUATION PHASE ------------------------------------------------------------
+Test Number: 3, Avg. Reward: 907.93
+* Failure Mode Encounters
+- Blackout Failure      : 0.0%
+- Mechanical Failure    : 0.0%
+- Navigation Failure    : 0.0%
+- Collision Failure     : 100.0%
+
+* Other status
+- Reaching endpoint     : 0.0%
+- False route sampling  : 0.0%
+- Not in terminal state : 0.0%
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+Episode: 61  , Elapsed time (s):47.1, Total numsteps: 95321 , Episode steps: 2986 , Travel distanced: 14274.44, Travel time: 1493.00 Reward: 1422.33 
+Status:|Map horizon hit failure|
+Episode: 62  , Elapsed time (s):37.8, Total numsteps: 98091 , Episode steps: 2770 , Travel distanced: 13093.90, Travel time: 1385.00 Reward: 1445.32 
+Status:|Map horizon hit failure|
+Episode: 63  , Elapsed time (s):44.0, Total numsteps: 101314, Episode steps: 3223 , Travel distanced: 15534.39, Travel time: 1611.50 Reward: 1600.86 
+Status:|Map horizon hit failure|
+Episode: 64  , Elapsed time (s):40.5, Total numsteps: 104278, Episode steps: 2964 , Travel distanced: 14067.23, Travel time: 1482.00 Reward: 1498.54 
+Status:|Map horizon hit failure|
+Episode: 65  , Elapsed time (s):39.7, Total numsteps: 106991, Episode steps: 2713 , Travel distanced: 12756.77, Travel time: 1356.50 Reward: 1469.47 
+Status:|Map horizon hit failure|
+Episode: 66  , Elapsed time (s):3.7, Total numsteps: 107248, Episode steps: 257  , Travel distanced: 606.52, Travel time: 128.50 Reward: 763.02  
+Status:|Map horizon hit failure|
+Episode: 67  , Elapsed time (s):3.4, Total numsteps: 107471, Episode steps: 223  , Travel distanced: 477.49, Travel time: 111.50 Reward: 753.53  
+Status:|Map horizon hit failure|
+Episode: 68  , Elapsed time (s):3.7, Total numsteps: 107710, Episode steps: 239  , Travel distanced: 537.02, Travel time: 119.50 Reward: 758.57  
+Status:|Map horizon hit failure|
+Episode: 69  , Elapsed time (s):45.7, Total numsteps: 110941, Episode steps: 3231 , Travel distanced: 15523.81, Travel time: 1615.50 Reward: 1556.03 
+Status:|Map horizon hit failure|
+Episode: 70  , Elapsed time (s):40.8, Total numsteps: 113925, Episode steps: 2984 , Travel distanced: 14225.42, Travel time: 1492.00 Reward: 1452.48 
+Status:|Map horizon hit failure|
+Episode: 71  , Elapsed time (s):39.4, Total numsteps: 116893, Episode steps: 2968 , Travel distanced: 14113.61, Travel time: 1484.00 Reward: 1479.94 
+Status:|Map horizon hit failure|
+Episode: 72  , Elapsed time (s):3.8, Total numsteps: 117113, Episode steps: 220  , Travel distanced: 466.68, Travel time: 110.00 Reward: 752.42  
+Status:|Map horizon hit failure|
+Episode: 73  , Elapsed time (s):45.7, Total numsteps: 120104, Episode steps: 2991 , Travel distanced: 14258.45, Travel time: 1495.50 Reward: 1452.65 
+Status:|Map horizon hit failure|
+Episode: 74  , Elapsed time (s):46.7, Total numsteps: 123063, Episode steps: 2959 , Travel distanced: 14042.88, Travel time: 1479.50 Reward: 1512.49 
+Status:|Map horizon hit failure|
+Episode: 75  , Elapsed time (s):40.8, Total numsteps: 126031, Episode steps: 2968 , Travel distanced: 14100.73, Travel time: 1484.00 Reward: 1485.00 
+Status:|Map horizon hit failure|
+Episode: 76  , Elapsed time (s):46.6, Total numsteps: 129271, Episode steps: 3240 , Travel distanced: 15629.76, Travel time: 1620.00 Reward: 1616.58 
+Status:|Map horizon hit failure|
+Episode: 77  , Elapsed time (s):38.2, Total numsteps: 132003, Episode steps: 2732 , Travel distanced: 12869.14, Travel time: 1366.00 Reward: 1477.12 
+Status:|Map horizon hit failure|
+Episode: 78  , Elapsed time (s):4.5, Total numsteps: 132275, Episode steps: 272  , Travel distanced: 666.57, Travel time: 136.00 Reward: 766.75  
+Status:|Map horizon hit failure|
+Episode: 79  , Elapsed time (s):46.4, Total numsteps: 135406, Episode steps: 3131 , Travel distanced: 15021.10, Travel time: 1565.50 Reward: 1843.95 
+Status:|Navigation failure|
+Episode: 80  , Elapsed time (s):40.2, Total numsteps: 138133, Episode steps: 2727 , Travel distanced: 12855.76, Travel time: 1363.50 Reward: 1513.01 
+Status:|Map horizon hit failure|
+
+----------------------------------------------------------- EVALUATION PHASE ------------------------------------------------------------
+Test Number: 4, Avg. Reward: 899.78
+* Failure Mode Encounters
+- Blackout Failure      : 0.0%
+- Mechanical Failure    : 0.0%
+- Navigation Failure    : 0.0%
+- Collision Failure     : 100.0%
+
+* Other status
+- Reaching endpoint     : 0.0%
+- False route sampling  : 0.0%
+- Not in terminal state : 0.0%
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+Episode: 81  , Elapsed time (s):41.6, Total numsteps: 141125, Episode steps: 2992 , Travel distanced: 14313.19, Travel time: 1496.00 Reward: 1420.91 
+Status:|Map horizon hit failure|
+Episode: 82  , Elapsed time (s):40.5, Total numsteps: 143826, Episode steps: 2701 , Travel distanced: 12703.67, Travel time: 1350.50 Reward: 1529.40 
+Status:|Map horizon hit failure|
+Episode: 83  , Elapsed time (s):40.3, Total numsteps: 146535, Episode steps: 2709 , Travel distanced: 12750.27, Travel time: 1354.50 Reward: 1542.36 
+Status:|Map horizon hit failure|
+Episode: 84  , Elapsed time (s):316.8, Total numsteps: 168506, Episode steps: 21971, Travel distanced: 16982.46, Travel time: 10985.50 Reward: 5661.48 
+Status:|Route point is sampled in terminal state|
+New best policy saved at Episode 84 with Reward: 5661.48
