@@ -1,0 +1,111 @@
+-------------------------------------------------------- STRESS TEST PARAMETERS ---------------------------------------------------------
+* Coefficient and boolean parameters
+ Policy type                                   : Gaussian
+ Do evaluation                                 : True
+ Reward discount factor (gamma)                : 0.99
+ Target smoothing coefficient (tau)            : 0.005
+ Action sampling frequency coefficient (theta) : 1.5
+ Maximum action sampling count per episode     : 9
+ RL learning rate                              : 0.0003
+ SAC's entropy temperature parameters (alpha)  : 0.2
+ Do automatic entroypy tuning                  : True
+
+* Neural networks parameters
+ Set random seed                               : 25450
+ SAC batch size                                : 64
+ SAC replay size                               : 1000
+ SAC hidden network size                       : 256
+ Run training on CUDA                          : True
+
+* Timesteps and episode parameters
+ Simulator time step size                      : 0.5
+ Maximum steps count over all episodes         : 100000
+ Steps count for initial exploration           : 10000
+ Steps count for model update                  : 1
+ Steps count for target update                 : 1
+ Episodes count for evaluation                 : 20
+ Episodes count during evaluation              : 20
+
+* Others
+ Autopilot LOS's radius of acceptance          : 500
+ Autopilot LOS's lookahead distance            : 1000
+
+------------------------------------------------------------ TRAINING PHASE -------------------------------------------------------------
+
+Episode: 1   , Elapsed time (s):10.0, Total numsteps: 867   , Episode steps: 867  , Travel distanced: 3464.19, Travel time: 433.50 Reward: 832.21  
+Status:|Collision failure|
+New best policy saved at Episode 1 with Reward: 832.21
+Episode: 2   , Elapsed time (s):13.4, Total numsteps: 1970  , Episode steps: 1103 , Travel distanced: 4641.07, Travel time: 551.50 Reward: 895.53  
+Status:|Collision failure|
+New best policy saved at Episode 2 with Reward: 895.53
+Episode: 3   , Elapsed time (s):13.0, Total numsteps: 2919  , Episode steps: 949  , Travel distanced: 3871.03, Travel time: 474.50 Reward: 811.36  
+Status:|Collision failure|
+Episode: 4   , Elapsed time (s):27.6, Total numsteps: 5187  , Episode steps: 2268 , Travel distanced: 10619.85, Travel time: 1134.00 Reward: -1974.05
+Status:|Route point is sampled in terminal state|
+Episode: 5   , Elapsed time (s):12.6, Total numsteps: 6206  , Episode steps: 1019 , Travel distanced: 4249.59, Travel time: 509.50 Reward: -2358.36
+Status:|Route point is sampled in terminal state|
+Episode: 6   , Elapsed time (s):18.3, Total numsteps: 7364  , Episode steps: 1158 , Travel distanced: 4918.70, Travel time: 579.00 Reward: 804.61  
+Status:|Collision failure|
+Episode: 7   , Elapsed time (s):21.9, Total numsteps: 8784  , Episode steps: 1420 , Travel distanced: 6369.39, Travel time: 710.00 Reward: -2446.37
+Status:|Route point is sampled in terminal state|
+Episode: 8   , Elapsed time (s):10.1, Total numsteps: 9559  , Episode steps: 775  , Travel distanced: 2957.78, Travel time: 387.50 Reward: 828.75  
+Status:|Collision failure|
+Episode: 9   , Elapsed time (s):7.9, Total numsteps: 10160 , Episode steps: 601  , Travel distanced: 2125.97, Travel time: 300.50 Reward: -2374.86
+Status:|Route point is sampled in terminal state|
+Episode: 10  , Elapsed time (s):8.1, Total numsteps: 10752 , Episode steps: 592  , Travel distanced: 2123.55, Travel time: 296.00 Reward: -2390.35
+Status:|Route point is sampled in terminal state|
+Episode: 11  , Elapsed time (s):8.1, Total numsteps: 11345 , Episode steps: 593  , Travel distanced: 2121.37, Travel time: 296.50 Reward: -2387.40
+Status:|Route point is sampled in terminal state|
+Episode: 12  , Elapsed time (s):51.0, Total numsteps: 15201 , Episode steps: 3856 , Travel distanced: 14059.62, Travel time: 1928.00 Reward: 1821.88 
+Status:|Map horizon hit failure|
+New best policy saved at Episode 12 with Reward: 1821.88
+Episode: 13  , Elapsed time (s):45.8, Total numsteps: 18700 , Episode steps: 3499 , Travel distanced: 14641.95, Travel time: 1749.50 Reward: 1598.59 
+Status:|Map horizon hit failure|
+Episode: 14  , Elapsed time (s):3.0, Total numsteps: 18943 , Episode steps: 243  , Travel distanced: 553.70, Travel time: 121.50 Reward: 757.89  
+Status:|Map horizon hit failure|
+Episode: 15  , Elapsed time (s):36.6, Total numsteps: 21979 , Episode steps: 3036 , Travel distanced: 12792.43, Travel time: 1518.00 Reward: 1586.69 
+Status:|Map horizon hit failure|
+Episode: 16  , Elapsed time (s):5.5, Total numsteps: 22445 , Episode steps: 466  , Travel distanced: 939.20, Travel time: 233.00 Reward: 803.99  
+Status:|Map horizon hit failure|
+Episode: 17  , Elapsed time (s):4.4, Total numsteps: 22820 , Episode steps: 375  , Travel distanced: 1118.32, Travel time: 187.50 Reward: 786.68  
+Status:|Map horizon hit failure|
+Episode: 18  , Elapsed time (s):35.2, Total numsteps: 25800 , Episode steps: 2980 , Travel distanced: 14247.69, Travel time: 1490.00 Reward: 1426.20 
+Status:|Map horizon hit failure|
+Episode: 19  , Elapsed time (s):32.2, Total numsteps: 28558 , Episode steps: 2758 , Travel distanced: 13049.28, Travel time: 1379.00 Reward: 1443.64 
+Status:|Map horizon hit failure|
+Episode: 20  , Elapsed time (s):32.9, Total numsteps: 31282 , Episode steps: 2724 , Travel distanced: 12866.27, Travel time: 1362.00 Reward: 1510.10 
+Status:|Map horizon hit failure|
+
+----------------------------------------------------------- EVALUATION PHASE ------------------------------------------------------------
+Test Number: 1, Avg. Reward: 841.49
+* Failure Mode Encounters
+- Blackout Failure      : 0.0%
+- Mechanical Failure    : 0.0%
+- Navigation Failure    : 0.0%
+- Collision Failure     : 65.0%
+
+* Other status
+- Reaching endpoint     : 0.0%
+- False route sampling  : 35.0%
+- Not in terminal state : 0.0%
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+Episode: 21  , Elapsed time (s):45.8, Total numsteps: 34959 , Episode steps: 3677 , Travel distanced: 14871.56, Travel time: 1838.50 Reward: 2211.37 
+Status:|Navigation failure|
+New best policy saved at Episode 21 with Reward: 2211.37
+Episode: 22  , Elapsed time (s):38.4, Total numsteps: 38229 , Episode steps: 3270 , Travel distanced: 12926.79, Travel time: 1635.00 Reward: 1857.01 
+Status:|Map horizon hit failure|
+Episode: 23  , Elapsed time (s):37.4, Total numsteps: 41356 , Episode steps: 3127 , Travel distanced: 15031.98, Travel time: 1563.50 Reward: 1836.74 
+Status:|Navigation failure|
+Episode: 24  , Elapsed time (s):49.6, Total numsteps: 45482 , Episode steps: 4126 , Travel distanced: 15488.01, Travel time: 2063.00 Reward: 1969.52 
+Status:|Map horizon hit failure|
+Episode: 25  , Elapsed time (s):37.6, Total numsteps: 48606 , Episode steps: 3124 , Travel distanced: 12861.16, Travel time: 1562.00 Reward: 1608.10 
+Status:|Map horizon hit failure|
+Episode: 26  , Elapsed time (s):47.9, Total numsteps: 52670 , Episode steps: 4064 , Travel distanced: 15536.06, Travel time: 2032.00 Reward: 1981.40 
+Status:|Map horizon hit failure|
+Episode: 27  , Elapsed time (s):2.9, Total numsteps: 52898 , Episode steps: 228  , Travel distanced: 497.13, Travel time: 114.00 Reward: 756.17  
+Status:|Map horizon hit failure|
+Episode: 28  , Elapsed time (s):2.7, Total numsteps: 53112 , Episode steps: 214  , Travel distanced: 446.55, Travel time: 107.00 Reward: 751.57  
+Status:|Map horizon hit failure|
+Episode: 29  , Elapsed time (s):35.7, Total numsteps: 56101 , Episode steps: 2989 , Travel distanced: 14250.23, Travel time: 1494.50 Reward: 1432.61 
+Status:|Map horizon hit failure|

@@ -105,6 +105,10 @@ class SAC(object):
 
             # Handle sampling condition
             # Do sample action at "init condition" or after the ship has travelled a certain distances
+            # OBS
+            # self.distance_travelled > self.segment_AB * self.theta should have been the navigatinal error trigger
+            # if init or if_reach_radius_of_acceptance
+            
             if init or self.distance_travelled > self.segment_AB * self.theta:
                 ## Sample new action
                 # First check if the we still allowed to sample an action

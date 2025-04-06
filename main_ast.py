@@ -130,20 +130,20 @@ ship_config = ShipConfiguration(
 env_config = EnvironmentConfiguration(
     current_velocity_component_from_north=-2,
     current_velocity_component_from_east=-2,
-    wind_speed=0,
-    wind_direction=0
+    wind_speed=2,
+    wind_direction=-np.pi/4
 )
 pto_mode_params = MachineryModeParams(
     main_engine_capacity=main_engine_capacity,
-    electrical_capacity=diesel_gen_capacity,
-    shaft_generator_state=hybrid_shaft_gen_as_offline
+    electrical_capacity=0,
+    shaft_generator_state=hybrid_shaft_gen_as_generator
 )
 pto_mode = MachineryMode(params=pto_mode_params)
 
 pti_mode_params = MachineryModeParams(
-    main_engine_capacity=main_engine_capacity,
-    electrical_capacity=diesel_gen_capacity,
-    shaft_generator_state=hybrid_shaft_gen_as_offline
+    main_engine_capacity=0,
+    electrical_capacity=2*diesel_gen_capacity,
+    shaft_generator_state=hybrid_shaft_gen_as_motor
 )
 pti_mode = MachineryMode(params=pti_mode_params)
 
@@ -154,7 +154,7 @@ mec_mode_params = MachineryModeParams(
 )
 mec_mode = MachineryMode(params=mec_mode_params)
 mso_modes = MachineryModes(
-    [mec_mode]
+    [pti_mode]
 )
 fuel_spec_me = SpecificFuelConsumptionWartila6L26()
 fuel_spec_dg = SpecificFuelConsumptionBaudouin6M26Dot3()
@@ -253,7 +253,7 @@ RL_env = ShipRLEnv(
 
 # # Pseudorandom seeding
 random_seed = False
-random_seed = True
+# random_seed = True
 if random_seed:
     RL_env.seed(args.seed)
     RL_env.action_space.seed(args.seed)
@@ -271,7 +271,7 @@ agent = SAC(RL_env, args)
 memory = ReplayMemory(args.replay_size, args.seed)
 
 # Log message
-log_ID = 13
+log_ID = 15
 log_dir = f"D:\OneDrive - NTNU\PhD\PhD_Projects\ShipTransit_OptiStress\ShipTransit_AST\logs/run_{log_ID}"
 logging = LogMessage(log_dir, log_ID, args)
 save_record = True

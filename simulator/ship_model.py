@@ -661,7 +661,7 @@ class ShipModelAST(BaseShipModel):
         )
         self.simulation_results['power me [kw]'].append(load_data.load_on_main_engine / 1000)
         self.simulation_results['available power me [kw]'].append(
-            self.ship_machinery_model.mode.main_engine_capacity / 1000 * 1.5
+            self.ship_machinery_model.mode.main_engine_capacity / 1000 
         )
         self.simulation_results['power electrical [kw]'].append(load_data.load_on_electrical / 1000)
         self.simulation_results['available power electrical [kw]'].append(

@@ -101,6 +101,7 @@ class ShipRLEnv(Env):
     
     def reset(self):
         # Reset the simulator and the list
+        # print(self.ship_model.simulation_results['available power electrical [kw]'])
         self.ship_model.reset()
         self.integrator_term = self.init_intergrator_term
         self.times = self.init_times
@@ -305,6 +306,7 @@ class ShipRLEnv(Env):
                             power_load, 
                             available_power_load):
         ## Diesel engine overloaded
+        # print(power_load)
         return power_load > available_power_load
     
 ###################################################################################################################

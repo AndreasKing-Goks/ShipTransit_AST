@@ -137,9 +137,10 @@ class EngineThrottleFromSpeedSetPoint:
 
     def throttle(self, speed_set_point, measured_speed, measured_shaft_speed):
         desired_shaft_speed = self.ship_speed_controller.pi_ctrl(setpoint=speed_set_point, measurement=measured_speed)
-        desired_shaft_speed = self.ship_speed_controller.sat(val=desired_shaft_speed, low=0, hi=self.max_shaft_speed)
+        # desired_shaft_speed = self.ship_speed_controller.sat(val=desired_shaft_speed, low=0, hi=self.max_shaft_speed)
         throttle = self.shaft_speed_controller.pi_ctrl(setpoint=desired_shaft_speed, measurement=measured_shaft_speed)
-        return self.shaft_speed_controller.sat(val=throttle, low=0, hi=1.1)
+        # return self.shaft_speed_controller.sat(val=throttle, low=0, hi=1.1)
+        return throttle
     
     def reset(self):
         ''' Reset the internal attributes of the throttle controller
