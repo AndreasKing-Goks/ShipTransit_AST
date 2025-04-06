@@ -56,7 +56,6 @@ class SAC(object):
         
         # Initialize variables for route point sampling
         self.sampling_frequency = args.sampling_frequency
-        self.theta = args.theta
         
         self.AB_north = RL_env.auto_pilot.navigate.north[-1] - RL_env.auto_pilot.navigate.north[0]
         self.AB_east = RL_env.auto_pilot.navigate.east[-1] - RL_env.auto_pilot.navigate.east[0]
@@ -66,8 +65,6 @@ class SAC(object):
         self.segment_AB_east = self.AB_east / (self.sampling_frequency + 1)
         self.segment_AB = np.sqrt(self.segment_AB_north**2 + self.segment_AB_east**2)
         
-        self.total_distance_travelled = 0
-        self.distance_travelled = 0
         self.sampling_count = 0
         
         self.last_action = 0

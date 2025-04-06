@@ -4,8 +4,8 @@
  Do evaluation                                 : True
  Reward discount factor (gamma)                : 0.99
  Target smoothing coefficient (tau)            : 0.005
- Action sampling frequency coefficient (theta) : 1.5
- Maximum action sampling count per episode     : 9
+ Action sampling frequency coefficient (theta) : 2
+ Maximum action sampling count per episode     : 7
  RL learning rate                              : 0.0003
  SAC's entropy temperature parameters (alpha)  : 0.2
  Do automatic entroypy tuning                  : True
@@ -32,9 +32,26 @@
 
 ------------------------------------------------------------ TRAINING PHASE -------------------------------------------------------------
 
-Episode: 1   , Elapsed time (s):1.6, Total numsteps: 1974  , Episode steps: 1975 , Travel distanced: 0.00  , Travel time: 987.00 Reward: 980.21  
+Episode: 1   , Elapsed time (s):2.7, Total numsteps: 3640  , Episode steps: 3641 , Travel distanced: 0.00  , Travel time: 1820.00 Reward: -1690.18
+Status:|Route point is sampled in terminal state|
+New best policy saved at Episode 1 with Reward: -1690.18
+Episode: 2   , Elapsed time (s):0.6, Total numsteps: 4515  , Episode steps: 876  , Travel distanced: 0.00  , Travel time: 437.50 Reward: -2274.87
+Status:|Route point is sampled in terminal state|
+Episode: 3   , Elapsed time (s):2.6, Total numsteps: 8026  , Episode steps: 3512 , Travel distanced: 0.00  , Travel time: 1755.50 Reward: -1468.05
+Status:|Route point is sampled in terminal state|
+New best policy saved at Episode 3 with Reward: -1468.05
+Episode: 4   , Elapsed time (s):1.2, Total numsteps: 9581  , Episode steps: 1556 , Travel distanced: 0.00  , Travel time: 777.50 Reward: 1113.27 
 Status:|Collision failure|
-New best policy saved at Episode 1 with Reward: 980.21
-Episode: 2   , Elapsed time (s):2.8, Total numsteps: 6257  , Episode steps: 4284 , Travel distanced: 0.00  , Travel time: 2141.50 Reward: 1794.87 
-Status:|Collision failure|
-New best policy saved at Episode 2 with Reward: 1794.87
+New best policy saved at Episode 4 with Reward: 1113.27
+Episode: 5   , Elapsed time (s):0.2, Total numsteps: 9860  , Episode steps: 280  , Travel distanced: 0.00  , Travel time: 139.50 Reward: 772.73  
+Status:|Map horizon hit failure|
+Episode: 6   , Elapsed time (s):4.0, Total numsteps: 15146 , Episode steps: 5287 , Travel distanced: 0.00  , Travel time: 2643.00 Reward: -427.71 
+Status:|Route point is sampled in terminal state|
+Episode: 7   , Elapsed time (s):3.9, Total numsteps: 20653 , Episode steps: 5508 , Travel distanced: 0.00  , Travel time: 2753.50 Reward: -617.83 
+Status:|Route point is sampled in terminal state|
+Episode: 8   , Elapsed time (s):0.2, Total numsteps: 20876 , Episode steps: 224  , Travel distanced: 0.00  , Travel time: 111.50 Reward: 757.55  
+Status:|Map horizon hit failure|
+Episode: 9   , Elapsed time (s):0.1, Total numsteps: 21069 , Episode steps: 194  , Travel distanced: 0.00  , Travel time: 96.50 Reward: 750.30  
+Status:|Map horizon hit failure|
+Episode: 10  , Elapsed time (s):3.9, Total numsteps: 26479 , Episode steps: 5411 , Travel distanced: 0.00  , Travel time: 2705.00 Reward: -480.38 
+Status:|Route point is sampled in terminal state|

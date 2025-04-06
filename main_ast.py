@@ -42,9 +42,9 @@ parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
                     help='discount factor for reward (default: 0.99)')
 parser.add_argument('--tau', type=float, default=0.005, metavar='G',
                     help='target smoothing coefficient(τ) (default: 0.005)')
-parser.add_argument('--theta', type=float, default=1.5, metavar='G',
+parser.add_argument('--theta', type=float, default=2, metavar='G',
                     help='action sampling frequency coefficient(θ) (default: 1.5)')
-parser.add_argument('--sampling_frequency', type=int, default=9, metavar='G',
+parser.add_argument('--sampling_frequency', type=int, default=7, metavar='G',
                     help='maximum amount of action sampling per episode (default: 9)')
 parser.add_argument('--max_route_resampling', type=int, default=1000, metavar='G',
                     help='maximum amount of route resampling if route is sampled inside\
@@ -249,6 +249,7 @@ RL_env = ShipRLEnv(
     times=times,
     ship_draw=True,
     time_since_last_ship_drawing=30,
+    args=args
 )
 
 # # Pseudorandom seeding
@@ -521,7 +522,7 @@ for i_episode in itertools.count(1):
         
         logging.evaluation_log(testing_count, avg_reward, status_record)
     
-    if i_episode == 2:
+    if i_episode == 10:
         # print(ship_model.simulation_results['power me [kw]'])
         # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
         break
@@ -692,15 +693,15 @@ axes[0].grid(color='0.8', linestyle='-', linewidth=0.5)
 # Plot 1.2: Sampled Route with the Order
 axes[2].scatter(auto_pilot.navigate.east, auto_pilot.navigate.north, marker='x', color='green')
 for i, (east, north) in enumerate(zip(auto_pilot.navigate.east, auto_pilot.navigate.north)):
-    # For start and end points, do not include sampling detail
-    if i == 0 or i == len(auto_pilot.navigate.east)-1: 
-        string = str(i)
-    # Else, include the sampling detail (point index between start and end point)
-    else:
-        # string = f"{i}, vel={velocity_list[i-1]:.2f} m/s, time={sample_time_list[i-1]:.1f} s"
-        string = f"{i}, time={sample_time_list[i-1]:.1f} s"
+    # # For start and end points, do not include sampling detail
+    # if i == 0 or i == len(auto_pilot.navigate.east)-1: 
+    #     string = str(i)
+    # # Else, include the sampling detail (point index between start and end point)
+    # else:
+    #     # string = f"{i}, vel={velocity_list[i-1]:.2f} m/s, time={sample_time_list[i-1]:.1f} s"
+    #     string = f"{i}, time={sample_time_list[i-1]:.1f} s"
     
-    axes[2].text(east, north, string, fontsize=8, ha='left', color='blue')  # Label with index
+    # axes[2].text(east, north, string, fontsize=8, ha='left', color='blue')  # Label with index
     radius_circle = Circle((east, north), args.radius_of_acceptance, color='red', alpha=0.3, fill=True)
     axes[2].add_patch(radius_circle)
 obstacles.plot_obstacle(axes[2])

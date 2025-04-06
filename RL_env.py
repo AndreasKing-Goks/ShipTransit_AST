@@ -28,7 +28,8 @@ class ShipRLEnv(Env):
                  integrator_term:list,
                  times:list,
                  ship_draw:bool,
-                 time_since_last_ship_drawing:float):
+                 time_since_last_ship_drawing:float,
+                 args):
     # def __init__(self):
         super().__init__()
         # Store the ship model, controllers, and reward function instances in self variables
@@ -97,6 +98,10 @@ class ShipRLEnv(Env):
         self.AB_beta = np.pi/2 - self.AB_alpha 
         self.prev_route_coordinate = None
         
+        self.total_distance_travelled = 0
+        self.distance_travelled = 0
+        self.theta = args.theta
+        
         self.i = 0
     
     def reset(self):
@@ -105,6 +110,7 @@ class ShipRLEnv(Env):
         self.ship_model.reset()
         self.integrator_term = self.init_intergrator_term
         self.times = self.init_times
+        self.distance_travelled = 0
         
         # Throttle controller reset
         self.throttle_controller.reset()
@@ -273,6 +279,13 @@ class ShipRLEnv(Env):
                                                     measured_shaft_rpm,
                                                     sampling_time_record)
         
+        # Compute travelled distance
+        if init == False:
+            dist_trav_north = self.ship_model.simulation_results['north position [m]'][-1] - self.ship_model.simulation_results['north position [m]'][-2]
+            dist_trav_east = self.ship_model.simulation_results['east position [m]'][-1] - self.ship_model.simulation_results['east position [m]'][-2]
+            self.distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
+            self.total_distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
+        
         # Step up the simulator
         self.ship_model.int.next_time()
         
@@ -348,8 +361,11 @@ class ShipRLEnv(Env):
         return np.abs(measured_shaft_rpm) > shaft_rpm_max
 
     def is_navigation_failure(self, e_ct):
-        ## Ship deviates off the course beyond tolerance
-        return np.abs(e_ct) > self.e_tolerance
+        ## Ship deviates off the course beyond tolerance defined by these two conditions
+        condition_1 = np.abs(e_ct) > self.e_tolerance
+        condition_2 = self.distance_travelled > self.AB_distance * self.theta
+        
+        return condition_1 or condition_2
 
     def is_blackout_failure(self,
                             power_load, 
