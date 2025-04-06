@@ -32,6 +32,6 @@
 
 ------------------------------------------------------------ TRAINING PHASE -------------------------------------------------------------
 
-Episode: 1   , Elapsed time (s):1.1, Total numsteps: 2972  , Episode steps: 2972 , Travel distanced: 6449.77, Travel time: 1486.00 Reward: 1763.04 
-Status:|Navigation failure|
-New best policy saved at Episode 1 with Reward: 1763.04
+Episode: 1   , Elapsed time (s):0.0, Total numsteps: 5     , Episode steps: 6    , Travel distanced: 0.03  , Travel time: 2.50  Reward: 1.33    
+Status:|Not in terminal state|
+New best policy saved at Episode 1 with Reward: 1.33

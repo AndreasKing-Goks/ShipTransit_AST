@@ -319,8 +319,14 @@ for i_episode in itertools.count(1):
     start_time = time.time()
     pseudo_step = 0
     while not done:
-        # At episode steps 0, we sampled the next intermediate route point immediately. 
+        # At episode steps 0, start the simulator by placing the init_step.
+        # Then, we sampled the next intermediate route point immediately. 
         if episode_steps == 0:
+            RL_env.init_step()
+            # print(RL_env.ship_model.north, RL_env.ship_model.east)
+            episode_steps += 1
+            continue
+        elif episode_steps == 1:
             init = True
         else:
             init = False
@@ -397,9 +403,9 @@ for i_episode in itertools.count(1):
         episode_record[i_episode]["rewards"].append(reward)
         episode_record[i_episode]["states"].append(state.tolist())
         
-        # pseudo_step += 1
-        # if pseudo_step > 2:
-        #     break
+        pseudo_step += 1
+        if pseudo_step > 4:
+            break
         
     # Reset the action sampling internal state at the end of episode
     agent.convert_action_reset()
@@ -452,9 +458,14 @@ for i_episode in itertools.count(1):
             episode_steps_eval = 0
             done = False
             while not done:
-                if episode_steps_eval == 0:
-                    init_eval = True
-                    RL_env.ship_model.init_store_simulation_data()
+                if episode_steps == 0:
+                    RL_env.init_step()
+                    print(RL_env.ship_model.north, RL_env.ship_model.east)
+                    episode_steps += 1
+                    continue
+                elif episode_steps == 1:
+                    print(RL_env.ship_model.north, RL_env.ship_model.east)
+                    init = True
                 else:
                     init_eval = False
                     
@@ -468,8 +479,7 @@ for i_episode in itertools.count(1):
                 
                 next_state, reward, done, status = RL_env.step(simu_input, 
                                                           action_to_simu_input,
-                                                          sampling_time_record,
-                                                          init)
+                                                          sampling_time_record)
                 
                 
                 episode_reward += reward
@@ -703,8 +713,9 @@ axes[3].set_title('Rudder angle [deg]')
 axes[3].set_xlabel('Time (s)')
 axes[3].set_ylabel('Rudder angle [deg]')
 
-# print(RL_env.auto_pilot.navigate.north)
-# print(RL_env.auto_pilot.navigate.east)
+# # print(RL_env.auto_pilot.navigate.north, RL_env.auto_pilot.navigate.east)
+# print(results_df['north position [m]'])
+# print(results_df['east position [m]'])
 
 # # Create a No.3 2x2 grid for subplots
 # fig_3, axes = plt.subplots(nrows=1, ncols=2, figsize=(15, 10))

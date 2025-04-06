@@ -119,6 +119,52 @@ class ShipRLEnv(Env):
         self.state = self.initial_state
         return self.state
     
+    def init_step(self):
+        ''' The initial step to place the ship and the controller 
+            to work inside the digital simulation.
+        '''
+        # Measure ship position and speed
+        north_position = self.ship_model.north
+        east_position = self.ship_model.east
+        heading = self.ship_model.yaw_angle
+        forward_speed = self.ship_model.forward_speed
+        
+        # Find appropriate rudder angle and engine throttle
+        rudder_angle = self.auto_pilot.rudder_angle_from_sampled_route(
+            north_position=north_position,
+            east_position=east_position,
+            heading=heading
+        )
+        
+        throttle = self.throttle_controller.throttle(
+            speed_set_point = self.expected_forward_speed,
+            measured_speed = forward_speed,
+            measured_shaft_speed = forward_speed
+        )
+        
+        # Update and integrate differential equations for current time step
+        # self.ship_model.store_simulation_data(throttle, 
+        #                                       rudder_angle,
+        #                                       self.auto_pilot.get_cross_track_error(),
+        #                                       self.auto_pilot.get_heading_error())
+        self.ship_model.update_differentials(engine_throttle=throttle, rudder_angle=rudder_angle)
+        self.ship_model.integrate_differentials()
+        
+        # self.integrator_term.append(self.auto_pilot.navigate.e_ct_int)
+        # self.times.append(self.ship_model.int.time)        
+        
+        # # Apply ship drawing (set as optional function)
+        # if self.ship_draw:
+        #     if self.time_since_last_ship_drawing > 30:
+        #         self.ship_model.ship_snap_shot()
+        #         self.time_since_last_ship_drawing = 0
+        #     self.time_since_last_ship_drawing += self.ship_model.int.dt
+        
+        # # Step up the simulator
+        # self.ship_model.int.next_time()
+        
+        return 
+    
     def step(self, 
              simu_input, 
              action_to_simu_input,

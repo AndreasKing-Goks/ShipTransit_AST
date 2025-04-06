@@ -641,91 +641,47 @@ class ShipModelAST(BaseShipModel):
         self.sideways_speed = self.int.integrate(x=self.sideways_speed, dx=self.d_sideways_speed)
         self.yaw_rate = self.int.integrate(x=self.yaw_rate, dx=self.d_yaw_rate)
         self.ship_machinery_model.integrate_differentials()
-
-    def init_store_simulation_data(self):
+    
+    def store_simulation_data(self, load_perc, rudder_angle, e_ct, e_psi):
+        load_perc_me, load_perc_hsg = self.ship_machinery_model.load_perc(load_perc)
+        self.simulation_results['time [s]'].append(self.int.time)
         self.simulation_results['north position [m]'].append(self.north)
         self.simulation_results['east position [m]'].append(self.east)
-    
-    def store_simulation_data(self, load_perc, rudder_angle, e_ct, e_psi, init=False):
-        if init:
-            load_perc_me, load_perc_hsg = self.ship_machinery_model.load_perc(load_perc)
-            self.simulation_results['time [s]'].append(self.int.time)
-            self.simulation_results['yaw angle [deg]'].append(self.yaw_angle * 180 / np.pi)
-            self.simulation_results['rudder angle [deg]'].append(rudder_angle * 180 / np.pi)
-            self.simulation_results['forward speed [m/s]'].append(self.forward_speed)
-            self.simulation_results['sideways speed [m/s]'].append(self.sideways_speed)
-            self.simulation_results['yaw rate [deg/sec]'].append(self.yaw_rate * 180 / np.pi)
-            self.simulation_results['propeller shaft speed [rpm]'].append(self.ship_machinery_model.omega * 30 / np.pi)
-            self.simulation_results['commanded load fraction me [-]'].append(load_perc_me)
-            self.simulation_results['commanded load fraction hsg [-]'].append(load_perc_hsg)
+        self.simulation_results['yaw angle [deg]'].append(self.yaw_angle * 180 / np.pi)
+        self.simulation_results['rudder angle [deg]'].append(rudder_angle * 180 / np.pi)
+        self.simulation_results['forward speed [m/s]'].append(self.forward_speed)
+        self.simulation_results['sideways speed [m/s]'].append(self.sideways_speed)
+        self.simulation_results['yaw rate [deg/sec]'].append(self.yaw_rate * 180 / np.pi)
+        self.simulation_results['propeller shaft speed [rpm]'].append(self.ship_machinery_model.omega * 30 / np.pi)
+        self.simulation_results['commanded load fraction me [-]'].append(load_perc_me)
+        self.simulation_results['commanded load fraction hsg [-]'].append(load_perc_hsg)
 
-            load_data = self.ship_machinery_model.mode.distribute_load(
-                load_perc=load_perc, hotel_load=self.ship_machinery_model.hotel_load
-            )
-            self.simulation_results['power me [kw]'].append(load_data.load_on_main_engine / 1000)
-            self.simulation_results['available power me [kw]'].append(
-                self.ship_machinery_model.mode.main_engine_capacity / 1000 
-            )
-            self.simulation_results['power electrical [kw]'].append(load_data.load_on_electrical / 1000)
-            self.simulation_results['available power electrical [kw]'].append(
-                self.ship_machinery_model.mode.electrical_capacity / 1000
-            )
-            self.simulation_results['power [kw]'].append((load_data.load_on_electrical
-                                                        + load_data.load_on_main_engine) / 1000)
-            self.simulation_results['propulsion power [kw]'].append(
-                (load_perc * self.ship_machinery_model.mode.available_propulsion_power) / 1000)
-            rate_me, rate_hsg, cons_me, cons_hsg, cons = self.ship_machinery_model.fuel_consumption(load_perc)
-            self.simulation_results['fuel rate me [kg/s]'].append(rate_me)
-            self.simulation_results['fuel rate hsg [kg/s]'].append(rate_hsg)
-            self.simulation_results['fuel rate [kg/s]'].append(rate_me + rate_hsg)
-            self.simulation_results['fuel consumption me [kg]'].append(cons_me)
-            self.simulation_results['fuel consumption hsg [kg]'].append(cons_hsg)
-            self.simulation_results['fuel consumption [kg]'].append(cons)
-            self.simulation_results['motor torque [Nm]'].append(self.ship_machinery_model.main_engine_torque(load_perc))
-            self.simulation_results['thrust force [kN]'].append(self.ship_machinery_model.thrust() / 1000)
-            self.simulation_results['cross track error [m]'].append(e_ct)
-            self.simulation_results['heading error [deg]'].append(e_psi)
-            
-        else:
-            load_perc_me, load_perc_hsg = self.ship_machinery_model.load_perc(load_perc)
-            self.simulation_results['time [s]'].append(self.int.time)
-            self.simulation_results['north position [m]'].append(self.north)
-            self.simulation_results['east position [m]'].append(self.east)
-            self.simulation_results['yaw angle [deg]'].append(self.yaw_angle * 180 / np.pi)
-            self.simulation_results['rudder angle [deg]'].append(rudder_angle * 180 / np.pi)
-            self.simulation_results['forward speed [m/s]'].append(self.forward_speed)
-            self.simulation_results['sideways speed [m/s]'].append(self.sideways_speed)
-            self.simulation_results['yaw rate [deg/sec]'].append(self.yaw_rate * 180 / np.pi)
-            self.simulation_results['propeller shaft speed [rpm]'].append(self.ship_machinery_model.omega * 30 / np.pi)
-            self.simulation_results['commanded load fraction me [-]'].append(load_perc_me)
-            self.simulation_results['commanded load fraction hsg [-]'].append(load_perc_hsg)
-
-            load_data = self.ship_machinery_model.mode.distribute_load(
-                load_perc=load_perc, hotel_load=self.ship_machinery_model.hotel_load
-            )
-            self.simulation_results['power me [kw]'].append(load_data.load_on_main_engine / 1000)
-            self.simulation_results['available power me [kw]'].append(
-                self.ship_machinery_model.mode.main_engine_capacity / 1000 
-            )
-            self.simulation_results['power electrical [kw]'].append(load_data.load_on_electrical / 1000)
-            self.simulation_results['available power electrical [kw]'].append(
-                self.ship_machinery_model.mode.electrical_capacity / 1000
-            )
-            self.simulation_results['power [kw]'].append((load_data.load_on_electrical
-                                                        + load_data.load_on_main_engine) / 1000)
-            self.simulation_results['propulsion power [kw]'].append(
-                (load_perc * self.ship_machinery_model.mode.available_propulsion_power) / 1000)
-            rate_me, rate_hsg, cons_me, cons_hsg, cons = self.ship_machinery_model.fuel_consumption(load_perc)
-            self.simulation_results['fuel rate me [kg/s]'].append(rate_me)
-            self.simulation_results['fuel rate hsg [kg/s]'].append(rate_hsg)
-            self.simulation_results['fuel rate [kg/s]'].append(rate_me + rate_hsg)
-            self.simulation_results['fuel consumption me [kg]'].append(cons_me)
-            self.simulation_results['fuel consumption hsg [kg]'].append(cons_hsg)
-            self.simulation_results['fuel consumption [kg]'].append(cons)
-            self.simulation_results['motor torque [Nm]'].append(self.ship_machinery_model.main_engine_torque(load_perc))
-            self.simulation_results['thrust force [kN]'].append(self.ship_machinery_model.thrust() / 1000)
-            self.simulation_results['cross track error [m]'].append(e_ct)
-            self.simulation_results['heading error [deg]'].append(e_psi)
+        load_data = self.ship_machinery_model.mode.distribute_load(
+            load_perc=load_perc, hotel_load=self.ship_machinery_model.hotel_load
+        )
+        self.simulation_results['power me [kw]'].append(load_data.load_on_main_engine / 1000)
+        self.simulation_results['available power me [kw]'].append(
+            self.ship_machinery_model.mode.main_engine_capacity / 1000 
+        )
+        self.simulation_results['power electrical [kw]'].append(load_data.load_on_electrical / 1000)
+        self.simulation_results['available power electrical [kw]'].append(
+        self.ship_machinery_model.mode.electrical_capacity / 1000
+        )
+        self.simulation_results['power [kw]'].append((load_data.load_on_electrical
+                                                    + load_data.load_on_main_engine) / 1000)
+        self.simulation_results['propulsion power [kw]'].append(
+            (load_perc * self.ship_machinery_model.mode.available_propulsion_power) / 1000)
+        rate_me, rate_hsg, cons_me, cons_hsg, cons = self.ship_machinery_model.fuel_consumption(load_perc)
+        self.simulation_results['fuel rate me [kg/s]'].append(rate_me)
+        self.simulation_results['fuel rate hsg [kg/s]'].append(rate_hsg)
+        self.simulation_results['fuel rate [kg/s]'].append(rate_me + rate_hsg)
+        self.simulation_results['fuel consumption me [kg]'].append(cons_me)
+        self.simulation_results['fuel consumption hsg [kg]'].append(cons_hsg)
+        self.simulation_results['fuel consumption [kg]'].append(cons)
+        self.simulation_results['motor torque [Nm]'].append(self.ship_machinery_model.main_engine_torque(load_perc))
+        self.simulation_results['thrust force [kN]'].append(self.ship_machinery_model.thrust() / 1000)
+        self.simulation_results['cross track error [m]'].append(e_ct)
+        self.simulation_results['heading error [deg]'].append(e_psi)
         
     ## ADDITIONAL ##
     
