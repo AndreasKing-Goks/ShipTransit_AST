@@ -295,6 +295,14 @@ class HeadingBySampledRouteController:
         return self.heading_controller.rudder_angle_from_heading_setpoint(heading_ref=self.heading_ref, measured_heading=heading)
     
     ## ADDITIONAL ##
+    def if_reach_radius_of_acceptance(self, n_pos, e_pos, r_o_a):
+        # print(n_pos, e_pos)
+        # print(self.navigate.north[self.next_wpt], self.navigate.east[self.next_wpt])
+        dist_to_next_route = np.sqrt((n_pos - self.navigate.north[self.next_wpt])**2 - (e_pos - self.navigate.east[self.next_wpt])**2)
+        # print(dist_to_next_route)
+        reach_radius_of_acceptance =  dist_to_next_route < r_o_a**2
+        return reach_radius_of_acceptance 
+    
     def get_heading_error(self):
         return np.abs(self.heading_mea - self.heading_ref)
     

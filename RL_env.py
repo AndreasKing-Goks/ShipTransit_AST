@@ -123,12 +123,15 @@ class ShipRLEnv(Env):
              simu_input, 
              action_to_simu_input,
              sampling_time_record,
+             init,
              debug=False):       
         # Measure ship position and speed
         north_position = self.ship_model.north
         east_position = self.ship_model.east
         heading = self.ship_model.yaw_angle
         forward_speed = self.ship_model.forward_speed
+        
+        # print('hi')
         
         if debug:
             print("---------------")

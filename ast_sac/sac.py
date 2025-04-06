@@ -20,6 +20,8 @@ class SAC(object):
         self.num_inputs = self.env.observation_space.shape[0]
         self.action_space = self.env.action_space
         
+        self.args = args
+        
         self.gamma = args.gamma
         self.tau = args.tau
         self.alpha = args.alpha
@@ -83,6 +85,8 @@ class SAC(object):
         self.time_record = 0
         
         self.stop_sampling = False
+        
+        self.i = 0
 
     def select_action(self, state, done: bool, init: bool, mode: int):
         
@@ -91,6 +95,8 @@ class SAC(object):
         state = torch.FloatTensor(state).to(self.device).unsqueeze(0)
 
         action_to_simu_input = False
+    
+        # print(init, 'eps ', i)
         
         if not self.stop_sampling:
 
@@ -98,18 +104,35 @@ class SAC(object):
             # Only compute travelled distance on the second action sampling
             # First action sampling is directly done at the first time step (flagged as init)
             if not init and len(self.env.ship_model.simulation_results['north position [m]']) > 1:
+            # if not init:
+                # print(init, 'eps ', self.i)
+                # print(self.env.ship_model.north, self.env.ship_model.east)
+                # print(self.env.ship_model.simulation_results['north position [m]'])
+                # print(self.env.ship_model.simulation_results['east position [m]'])
                 dist_trav_north = self.env.ship_model.simulation_results['north position [m]'][-1] - self.env.ship_model.simulation_results['north position [m]'][-2]
                 dist_trav_east = self.env.ship_model.simulation_results['east position [m]'][-1] - self.env.ship_model.simulation_results['east position [m]'][-2]
                 self.distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
                 self.total_distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
-
+            
             # Handle sampling condition
             # Do sample action at "init condition" or after the ship has travelled a certain distances
             # OBS
             # self.distance_travelled > self.segment_AB * self.theta should have been the navigatinal error trigger
             # if init or if_reach_radius_of_acceptance
             
+            # Input for checking radius of acceptance
+            n_pos = self.env.ship_model.north
+            e_pos = self.env.ship_model.east
+            r_o_a = self.args.radius_of_acceptance
+            
+            reach_radius_of_acceptance = self.env.auto_pilot.if_reach_radius_of_acceptance(n_pos, e_pos, r_o_a)
+            
             if init or self.distance_travelled > self.segment_AB * self.theta:
+                # print(init, 'epis ', self.i)
+                # print(self.env.ship_model.north, self.env.ship_model.east)
+                # print(self.env.ship_model.simulation_results['north position [m]'])
+                # print(self.env.ship_model.simulation_results['east position [m]'])
+            # if init or reach_radius_of_acceptance:
                 ## Sample new action
                 # First check if the we still allowed to sample an action
                 # according to the allowed sampling frequency
@@ -146,6 +169,8 @@ class SAC(object):
                     
                     # Reset time record  when we truly sample new action
                     self.time_record = 0
+                    
+                    self.i += 1
                 
                     return action, action_to_simu_input, sampling_time_record
             
@@ -172,6 +197,8 @@ class SAC(object):
         self.time_record += self.env.ship_model.int.dt
         
         sampling_time_record = self.time_record
+        
+        self.i += 1
         
         return action, action_to_simu_input, sampling_time_record
     

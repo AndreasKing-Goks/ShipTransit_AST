@@ -253,7 +253,7 @@ RL_env = ShipRLEnv(
 
 # # Pseudorandom seeding
 random_seed = False
-# random_seed = True
+random_seed = True
 if random_seed:
     RL_env.seed(args.seed)
     RL_env.action_space.seed(args.seed)
@@ -317,6 +317,7 @@ for i_episode in itertools.count(1):
     
     # Start training timer
     start_time = time.time()
+    pseudo_step = 0
     while not done:
         # At episode steps 0, we sampled the next intermediate route point immediately. 
         if episode_steps == 0:
@@ -369,7 +370,8 @@ for i_episode in itertools.count(1):
         # Step up the simulation
         next_state, reward, done, status = RL_env.step(simu_input, 
                                                        action_to_simu_input, 
-                                                       sampling_time_record)
+                                                       sampling_time_record,
+                                                       init)
         episode_steps += 1
         total_numsteps += 1
         episode_reward += reward
@@ -379,8 +381,12 @@ for i_episode in itertools.count(1):
         
         # Push the transtition to memory
         ###OBS####
-        # Input action inside memory
-        memory.push(state, action, reward, next_state, mask)
+        # # Input action inside memory
+        # memory.push(state, action, reward, next_state, mask)
+        
+        # Input action inside memory ONLY during the action sampling
+        if action_to_simu_input:
+            memory.push(state, action, reward, next_state, mask)
     
         # Set the next state as current state for the next step
         state = next_state
@@ -390,6 +396,10 @@ for i_episode in itertools.count(1):
         episode_record[i_episode]["termination"].append(done)
         episode_record[i_episode]["rewards"].append(reward)
         episode_record[i_episode]["states"].append(state.tolist())
+        
+        # pseudo_step += 1
+        # if pseudo_step > 2:
+        #     break
         
     # Reset the action sampling internal state at the end of episode
     agent.convert_action_reset()
@@ -444,6 +454,7 @@ for i_episode in itertools.count(1):
             while not done:
                 if episode_steps_eval == 0:
                     init_eval = True
+                    RL_env.ship_model.init_store_simulation_data()
                 else:
                     init_eval = False
                     
@@ -457,7 +468,8 @@ for i_episode in itertools.count(1):
                 
                 next_state, reward, done, status = RL_env.step(simu_input, 
                                                           action_to_simu_input,
-                                                          sampling_time_record)
+                                                          sampling_time_record,
+                                                          init)
                 
                 
                 episode_reward += reward
@@ -499,7 +511,7 @@ for i_episode in itertools.count(1):
         
         logging.evaluation_log(testing_count, avg_reward, status_record)
     
-    if i_episode == 29:
+    if i_episode == 1:
         # print(ship_model.simulation_results['power me [kw]'])
         # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
         break
@@ -610,35 +622,35 @@ route_east_list = last_action_record["route_east [m]"].to_list()
 results_df = pd.DataFrame().from_dict(ship_model.simulation_results)
 # print(results_df.head())
 
-# Create a No.2 2x2 grid for subplots
-fig_2, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
-axes = axes.flatten()  # Flatten the 2D array for easier indexing
+# # Create a No.2 2x2 grid for subplots
+# fig_2, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
+# axes = axes.flatten()  # Flatten the 2D array for easier indexing
 
-# Plot 2.1: Propeller Shaft Speed
-axes[0].plot(results_df['time [s]'], results_df['propeller shaft speed [rpm]'])
-axes[0].set_title('Propeller Shaft Speed [rpm]')
-axes[0].set_xlabel('Time (s)')
-axes[0].set_ylabel('Propeller Shaft Speed (rpm)')
+# # Plot 2.1: Propeller Shaft Speed
+# axes[0].plot(results_df['time [s]'], results_df['propeller shaft speed [rpm]'])
+# axes[0].set_title('Propeller Shaft Speed [rpm]')
+# axes[0].set_xlabel('Time (s)')
+# axes[0].set_ylabel('Propeller Shaft Speed (rpm)')
 
-# Plot 2.2: Power vs Available Power
-axes[2].plot(results_df['time [s]'], results_df['power me [kw]'], label="Power")
-axes[2].plot(results_df['time [s]'], results_df['available power me [kw]'], label="Available Power")
-axes[2].set_title('Power vs Available Power [kw]')
-axes[2].set_xlabel('Time (s)')
-axes[2].set_ylabel('Power (kw)')
-axes[2].legend()
+# # Plot 2.2: Power vs Available Power
+# axes[2].plot(results_df['time [s]'], results_df['power me [kw]'], label="Power")
+# axes[2].plot(results_df['time [s]'], results_df['available power me [kw]'], label="Available Power")
+# axes[2].set_title('Power vs Available Power [kw]')
+# axes[2].set_xlabel('Time (s)')
+# axes[2].set_ylabel('Power (kw)')
+# axes[2].legend()
 
-# Plot 2.3: Cross Track error
-axes[1].plot(results_df['time [s]'], results_df['cross track error [m]'])
-axes[1].set_title('Cross Track Error [m]')
-axes[1].set_xlabel('Time (s)')
-axes[1].set_ylabel('Cross track error (m)')
+# # Plot 2.3: Cross Track error
+# axes[1].plot(results_df['time [s]'], results_df['cross track error [m]'])
+# axes[1].set_title('Cross Track Error [m]')
+# axes[1].set_xlabel('Time (s)')
+# axes[1].set_ylabel('Cross track error (m)')
 
-# Plot 2.4: Fuel Consumption
-axes[3].plot(results_df['time [s]'], results_df['fuel consumption [kg]'])
-axes[3].set_title('Fuel Consumption [kg]')
-axes[3].set_xlabel('Time (s)')
-axes[3].set_ylabel('Fuel Consumption (kg)')
+# # Plot 2.4: Fuel Consumption
+# axes[3].plot(results_df['time [s]'], results_df['fuel consumption [kg]'])
+# axes[3].set_title('Fuel Consumption [kg]')
+# axes[3].set_xlabel('Time (s)')
+# axes[3].set_ylabel('Fuel Consumption (kg)')
 
 # Create a No.1 2x2 grid for subplots
 fig_1, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
