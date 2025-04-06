@@ -90,7 +90,7 @@ parser.add_argument('--num_scoring_episodes', type=int, default=20, metavar='N',
                     help='Number of episode for learning performance assesment(default: 20)')
 
 # Others
-parser.add_argument('--radius_of_acceptance', type=int, default=500, metavar='O',
+parser.add_argument('--radius_of_acceptance', type=int, default=300, metavar='O',
                     help='Radius of acceptance for LOS algorithm(default: 600)')
 parser.add_argument('--lookahead_distance', type=int, default=1000, metavar='O',
                     help='Lookahead distance for LOS algorithm(default: 450)')
@@ -317,7 +317,7 @@ for i_episode in itertools.count(1):
     
     # Start training timer
     start_time = time.time()
-    pseudo_step = 0
+    # pseudo_step = 0
     while not done:
         # At episode steps 0, start the simulator by placing the init_step.
         # Then, we sampled the next intermediate route point immediately. 
@@ -403,9 +403,9 @@ for i_episode in itertools.count(1):
         episode_record[i_episode]["rewards"].append(reward)
         episode_record[i_episode]["states"].append(state.tolist())
         
-        pseudo_step += 1
-        if pseudo_step > 4:
-            break
+        # pseudo_step += 1
+        # if pseudo_step > 4:
+        #     break
         
     # Reset the action sampling internal state at the end of episode
     agent.convert_action_reset()
@@ -521,11 +521,12 @@ for i_episode in itertools.count(1):
         
         logging.evaluation_log(testing_count, avg_reward, status_record)
     
-    if i_episode == 1:
+    if i_episode == 2:
         # print(ship_model.simulation_results['power me [kw]'])
         # print(ship_model.simulation_results['propeller shaft speed [rpm]'])
         break
 
+# print(len(memory.buffer))
 
 ####################################################################################################################################
 ## LOG AND THE BEST EPISODE SIMULATION STEPS
@@ -641,6 +642,8 @@ results_df = pd.DataFrame().from_dict(ship_model.simulation_results)
 # axes[0].set_title('Propeller Shaft Speed [rpm]')
 # axes[0].set_xlabel('Time (s)')
 # axes[0].set_ylabel('Propeller Shaft Speed (rpm)')
+# axes[0].grid(color='0.8', linestyle='-', linewidth=0.5)
+# axes[0].set_xlim(left=0)
 
 # # Plot 2.2: Power vs Available Power
 # axes[2].plot(results_df['time [s]'], results_df['power me [kw]'], label="Power")
@@ -649,18 +652,24 @@ results_df = pd.DataFrame().from_dict(ship_model.simulation_results)
 # axes[2].set_xlabel('Time (s)')
 # axes[2].set_ylabel('Power (kw)')
 # axes[2].legend()
+# axes[2].grid(color='0.8', linestyle='-', linewidth=0.5)
+# axes[2].set_xlim(left=0)
 
 # # Plot 2.3: Cross Track error
 # axes[1].plot(results_df['time [s]'], results_df['cross track error [m]'])
 # axes[1].set_title('Cross Track Error [m]')
 # axes[1].set_xlabel('Time (s)')
 # axes[1].set_ylabel('Cross track error (m)')
+# axes[1].grid(color='0.8', linestyle='-', linewidth=0.5)
+# axes[1].set_xlim(left=0)
 
 # # Plot 2.4: Fuel Consumption
 # axes[3].plot(results_df['time [s]'], results_df['fuel consumption [kg]'])
 # axes[3].set_title('Fuel Consumption [kg]')
 # axes[3].set_xlabel('Time (s)')
 # axes[3].set_ylabel('Fuel Consumption (kg)')
+# axes[3].grid(color='0.8', linestyle='-', linewidth=0.5)
+# axes[3].set_xlim(left=0)
 
 # Create a No.1 2x2 grid for subplots
 fig_1, axes = plt.subplots(nrows=2, ncols=2, figsize=(15, 10))
@@ -678,6 +687,7 @@ axes[0].set_title('Ship Trajectory with the Sampled Route')
 axes[0].set_xlabel('East position (m)')
 axes[0].set_ylabel('North position (m)')
 axes[0].set_aspect('equal')
+axes[0].grid(color='0.8', linestyle='-', linewidth=0.5)
 
 # Plot 1.2: Sampled Route with the Order
 axes[2].scatter(auto_pilot.navigate.east, auto_pilot.navigate.north, marker='x', color='green')
@@ -700,18 +710,24 @@ axes[2].set_title('Sampled Route with the Order')
 axes[2].set_xlabel('East position (m)')
 axes[2].set_ylabel('North position (m)')
 axes[2].set_aspect('equal')
+axes[2].grid(color='0.8', linestyle='-', linewidth=0.5)
 
 # Plot 1.3: Forward Speed
 axes[1].plot(results_df['time [s]'], results_df['forward speed [m/s]'])
 axes[1].set_title('Forward Speed [m/s]')
 axes[1].set_xlabel('Time (s)')
 axes[1].set_ylabel('Forward Speed (m/s)')
+axes[1].grid(color='0.8', linestyle='-', linewidth=0.5)
+axes[1].set_xlim(left=0)
 
 # Plot 1.4: Rudder Angle
 axes[3].plot(results_df['time [s]'], results_df['rudder angle [deg]'])
 axes[3].set_title('Rudder angle [deg]')
 axes[3].set_xlabel('Time (s)')
 axes[3].set_ylabel('Rudder angle [deg]')
+axes[3].grid(color='0.8', linestyle='-', linewidth=0.5)
+axes[3].set_xlim(left=0)
+axes[3].set_ylim(-31,31)
 
 # # print(RL_env.auto_pilot.navigate.north, RL_env.auto_pilot.navigate.east)
 # print(results_df['north position [m]'])

@@ -297,10 +297,12 @@ class HeadingBySampledRouteController:
     ## ADDITIONAL ##
     def if_reach_radius_of_acceptance(self, n_pos, e_pos, r_o_a):
         # print(n_pos, e_pos)
+        # print(self.next_wpt)
+        # print(self.navigate.north, self.navigate.east)
         # print(self.navigate.north[self.next_wpt], self.navigate.east[self.next_wpt])
-        dist_to_next_route = np.sqrt((n_pos - self.navigate.north[self.next_wpt])**2 - (e_pos - self.navigate.east[self.next_wpt])**2)
-        # print(dist_to_next_route)
-        reach_radius_of_acceptance =  dist_to_next_route < r_o_a**2
+        dist_to_next_route = np.sqrt((n_pos - self.navigate.north[self.next_wpt])**2 + (e_pos - self.navigate.east[self.next_wpt])**2)
+        # print(dist_to_next_route, r_o_a)
+        reach_radius_of_acceptance =  dist_to_next_route < r_o_a
         return reach_radius_of_acceptance 
     
     def get_heading_error(self):

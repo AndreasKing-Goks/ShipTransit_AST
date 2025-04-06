@@ -27,11 +27,14 @@
  Episodes count during evaluation              : 20
 
 * Others
- Autopilot LOS's radius of acceptance          : 500
+ Autopilot LOS's radius of acceptance          : 300
  Autopilot LOS's lookahead distance            : 1000
 
 ------------------------------------------------------------ TRAINING PHASE -------------------------------------------------------------
 
-Episode: 1   , Elapsed time (s):0.0, Total numsteps: 5     , Episode steps: 6    , Travel distanced: 0.03  , Travel time: 2.50  Reward: 1.33    
-Status:|Not in terminal state|
-New best policy saved at Episode 1 with Reward: 1.33
+Episode: 1   , Elapsed time (s):1.6, Total numsteps: 1974  , Episode steps: 1975 , Travel distanced: 0.00  , Travel time: 987.00 Reward: 980.21  
+Status:|Collision failure|
+New best policy saved at Episode 1 with Reward: 980.21
+Episode: 2   , Elapsed time (s):2.8, Total numsteps: 6257  , Episode steps: 4284 , Travel distanced: 0.00  , Travel time: 2141.50 Reward: 1794.87 
+Status:|Collision failure|
+New best policy saved at Episode 2 with Reward: 1794.87

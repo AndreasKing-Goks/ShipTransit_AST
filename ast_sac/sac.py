@@ -100,19 +100,20 @@ class SAC(object):
         
         if not self.stop_sampling:
 
+            # NOT NEEDED ANYMORE FOR THE SAMPLING CONDITION WITH RADIUS OF ACCEPTANCE
             # Compute traveled distance
             # Only compute travelled distance on the second action sampling
             # First action sampling is directly done at the first time step (flagged as init)
-            if not init and len(self.env.ship_model.simulation_results['north position [m]']) > 1:
-            # if not init:
-                # print(init, 'eps ', self.i)
-                # print(self.env.ship_model.north, self.env.ship_model.east)
-                # print(self.env.ship_model.simulation_results['north position [m]'])
-                # print(self.env.ship_model.simulation_results['east position [m]'])
-                dist_trav_north = self.env.ship_model.simulation_results['north position [m]'][-1] - self.env.ship_model.simulation_results['north position [m]'][-2]
-                dist_trav_east = self.env.ship_model.simulation_results['east position [m]'][-1] - self.env.ship_model.simulation_results['east position [m]'][-2]
-                self.distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
-                self.total_distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
+            # if not init and len(self.env.ship_model.simulation_results['north position [m]']) > 1:
+            # # if not init:
+            #     # print(init, 'eps ', self.i)
+            #     # print(self.env.ship_model.north, self.env.ship_model.east)
+            #     # print(self.env.ship_model.simulation_results['north position [m]'])
+            #     # print(self.env.ship_model.simulation_results['east position [m]'])
+            #     dist_trav_north = self.env.ship_model.simulation_results['north position [m]'][-1] - self.env.ship_model.simulation_results['north position [m]'][-2]
+            #     dist_trav_east = self.env.ship_model.simulation_results['east position [m]'][-1] - self.env.ship_model.simulation_results['east position [m]'][-2]
+            #     self.distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
+            #     self.total_distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
             
             # Handle sampling condition
             # Do sample action at "init condition" or after the ship has travelled a certain distances
@@ -126,13 +127,13 @@ class SAC(object):
             r_o_a = self.args.radius_of_acceptance
             
             reach_radius_of_acceptance = self.env.auto_pilot.if_reach_radius_of_acceptance(n_pos, e_pos, r_o_a)
-            
-            if init or self.distance_travelled > self.segment_AB * self.theta:
+            # print(reach_radius_of_acceptance)
+            # if init or self.distance_travelled > self.segment_AB * self.theta:
                 # print(init, 'epis ', self.i)
                 # print(self.env.ship_model.north, self.env.ship_model.east)
                 # print(self.env.ship_model.simulation_results['north position [m]'])
                 # print(self.env.ship_model.simulation_results['east position [m]'])
-            # if init or reach_radius_of_acceptance:
+            if init or reach_radius_of_acceptance:
                 ## Sample new action
                 # First check if the we still allowed to sample an action
                 # according to the allowed sampling frequency
