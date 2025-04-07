@@ -207,11 +207,19 @@ class HeadingByRouteController:
             integral_gain=los_parameters.integral_gain,
             integrator_windup_limit=los_parameters.integrator_windup_limit
         )
-        self.next_wpt = 1
-        self.prev_wpt = 0
+        ## Initial internal attributes
+        self.init_next_wpt = 1
+        self.init_prev_wpt = 0
         
-        self.heading_ref = 0
-        self.heading_mea = 0
+        self.init_heading_ref = 0
+        self.init_heading_mea = 0
+        
+        ## Internal attributes
+        self.next_wpt = self.init_next_wpt
+        self.prev_wpt = self.init_prev_wpt
+        
+        self.heading_ref = self.init_heading_ref
+        self.heading_mea = self.init_heading_mea
 
     def rudder_angle_from_route(self, north_position, east_position, heading):
         ''' This method finds a suitable rudder angle for the ship to follow
@@ -229,6 +237,17 @@ class HeadingByRouteController:
     
     def get_error_cross_track(self):
         return self.navigate.e_ct
+    
+    def reset(self):
+        # Internal attributes reset
+        self.next_wpt = self.init_next_wpt
+        self.prev_wpt = self.init_prev_wpt
+        
+        self.heading_ref = self.init_heading_ref
+        self.heading_mea = self.init_heading_mea
+        
+        # Navigation system attributes
+        self.navigate.reset()
     
 
 class HeadingBySampledRouteController:
