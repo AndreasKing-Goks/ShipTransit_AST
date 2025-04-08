@@ -106,9 +106,25 @@ class PolygonObstacle:
         '''
         self.polygons = [Polygon(verts) for verts in list_of_vertices_list]
         self.num_obstacles = len(self.polygons)
+        self.map_boundaries(list_of_vertices_list)
+        
+    def map_boundaries(self, list_of_vertices_list):
+        # Flatten the list of lists into a single list of (east, north) tuples
+        map_data = list_of_vertices_list
+        all_points = [point for island in map_data for point in island]
+        
+        # Separate into east and north components
+        east_values = [p[0] for p in all_points]
+        north_values = [p[1] for p in all_points]
+        
+        # Compute min and max
+        self.min_east = min(east_values)
+        self.max_east = max(east_values)
+        self.min_north = min(north_values)
+        self.max_north = max(north_values)
     
     def if_pos_inside_obstacles(self, n_pos, e_pos):
-        ''' Check if ship is inside any polygon '''
+        ''' Check if tagged pos is inside any polygon '''
         pt = Point(e_pos, n_pos)  # x = east, y = north
         return any(poly.contains(pt) for poly in self.polygons)
     

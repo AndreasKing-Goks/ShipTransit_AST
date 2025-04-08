@@ -319,3 +319,7 @@ env = MultiShipRLEnv(assets=assets,
 
 env.reset()
 env.init_step()
+print(env.map.min_east)
+print(env.map.min_north)
+print(env.map.max_east)
+print(env.map.max_north)
