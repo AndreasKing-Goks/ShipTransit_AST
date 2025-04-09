@@ -111,7 +111,7 @@ class NavigationSystem:
         dy = self.east[k] - self.east[k - 1]
         alpha_k = math.atan2(dy, dx)
         e_ct = -(x - self.north[k - 1]) * math.sin(alpha_k) + (y - self.east[k - 1]) * math.cos(alpha_k) # Cross-track error
-        self.e_ct = e_ct
+        self.e_ct = np.abs(e_ct)
         if e_ct ** 2 >= self.r ** 2:
             e_ct = 0.99 * self.r
         delta = math.sqrt(self.r ** 2 - e_ct ** 2)

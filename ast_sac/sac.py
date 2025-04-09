@@ -4,35 +4,44 @@ from numpy import ndarray
 import torch
 import torch.nn.functional as F
 from torch.optim import Adam
-from RL_env import ShipRLEnv
+from MSRL_env import MultiShipRLEnv
 from simulator.obstacle import StaticObstacle
 from ast_sac.utils import soft_update, hard_update
 from ast_sac.nn_models import GaussianPolicy, QNetwork, DeterministicPolicy
 
 
 class SAC(object):
+    ''' This class contains the policy neural networks that dictates the behaviour of disturbance to the system
+        to stress test the ship in test. The class also contains method to update the policy, save and load the
+        policy learning.
+        
+        SAC affects obstacle ship and specified external disturbance
+    '''
     def __init__(self, 
-                 RL_env: ShipRLEnv, 
+                 RL_env: MultiShipRLEnv, 
                  args):
 
+        # Get the RL environment wrapper class
         self.env = RL_env
         
+        # Get the shape of the state and action space
         self.num_inputs = self.env.observation_space.shape[0]
         self.action_space = self.env.action_space
         
-        self.args = args
-        
+        # Unpack necessary args
+        self.args = args        
         self.gamma = args.gamma
         self.tau = args.tau
         self.alpha = args.alpha
-
         self.policy_type = args.policy
         self.target_update_interval = args.target_update_interval
         self.automatic_entropy_tuning = args.automatic_entropy_tuning
         self.max_route_resampling = args.max_route_resampling
 
+        # Make cuda available
         self.device = torch.device("cuda" if args.cuda else "cpu")
 
+        # Set the neural network
         self.critic = QNetwork(self.num_inputs, self.action_space.shape[0], args.hidden_size).to(device=self.device)
         self.critic_optim = Adam(self.critic.parameters(), lr=args.lr)
 
@@ -57,12 +66,11 @@ class SAC(object):
         # Initialize variables for route point sampling
         self.sampling_frequency = args.sampling_frequency
         
-        self.AB_north = RL_env.auto_pilot.navigate.north[-1] - RL_env.auto_pilot.navigate.north[0]
-        self.AB_east = RL_env.auto_pilot.navigate.east[-1] - RL_env.auto_pilot.navigate.east[0]
-        self.AB_alpha = np.arctan2(self.AB_east, self.AB_north)
+        # Variable for action selection
+        self.AB_alpha = np.arctan2(self.env.AB_distance_e, self.env.AB_distance_n)
         self.AB_beta = np.pi/2 - self.AB_alpha
-        self.segment_AB_north = self.AB_north / (self.sampling_frequency + 1)
-        self.segment_AB_east = self.AB_east / (self.sampling_frequency + 1)
+        self.segment_AB_north = self.env.AB_distance_n / (self.sampling_frequency + 1)
+        self.segment_AB_east = self.env.AB_distance_e / (self.sampling_frequency + 1)
         self.segment_AB = np.sqrt(self.segment_AB_north**2 + self.segment_AB_east**2)
         
         self.sampling_count = 0
@@ -70,20 +78,19 @@ class SAC(object):
         self.last_action = 0
         self.last_route_point_north = 0 
         self.last_route_point_east = 0
-        self.last_desired_forward_speed = self.env.expected_forward_speed
+        self.last_desired_forward_speed = self.env.obs.desired_forward_speed
         
         self.omega = np.pi/2 - self.AB_beta 
         
         self.x_s = 0
         self.y_s = 0
-        self.x_base = self.segment_AB_north
-        self.y_base = self.segment_AB_north
+        self.e_base = self.segment_AB_east + self.env.obs.auto_pilot.navigate.east[0]
+        self.n_base = self.segment_AB_north + self.env.obs.auto_pilot.navigate.north[0]
         
         self.time_record = 0
         
         self.stop_sampling = False
         
-        self.i = 0
 
     def select_action(self, state, done: bool, init: bool, mode: int):
         
@@ -91,54 +98,22 @@ class SAC(object):
         # Transform the state array to tensor
         state = torch.FloatTensor(state).to(self.device).unsqueeze(0)
 
-        action_to_simu_input = False
-    
-        # print(init, 'eps ', i)
+        SAC_update = False
         
         if not self.stop_sampling:
-
-            # NOT NEEDED ANYMORE FOR THE SAMPLING CONDITION WITH RADIUS OF ACCEPTANCE
-            # Compute traveled distance
-            # Only compute travelled distance on the second action sampling
-            # First action sampling is directly done at the first time step (flagged as init)
-            # if not init and len(self.env.ship_model.simulation_results['north position [m]']) > 1:
-            # # if not init:
-            #     # print(init, 'eps ', self.i)
-            #     # print(self.env.ship_model.north, self.env.ship_model.east)
-            #     # print(self.env.ship_model.simulation_results['north position [m]'])
-            #     # print(self.env.ship_model.simulation_results['east position [m]'])
-            #     dist_trav_north = self.env.ship_model.simulation_results['north position [m]'][-1] - self.env.ship_model.simulation_results['north position [m]'][-2]
-            #     dist_trav_east = self.env.ship_model.simulation_results['east position [m]'][-1] - self.env.ship_model.simulation_results['east position [m]'][-2]
-            #     self.distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
-            #     self.total_distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
-            
-            # Handle sampling condition
-            # Do sample action at "init condition" or after the ship has travelled a certain distances
-            # OBS
-            # self.distance_travelled > self.segment_AB * self.theta should have been the navigatinal error trigger
-            # if init or if_reach_radius_of_acceptance
             
             # Input for checking radius of acceptance
-            n_pos = self.env.ship_model.north
-            e_pos = self.env.ship_model.east
+            n_pos = self.env.obs.ship_model.north
+            e_pos = self.env.obs.ship_model.east
             r_o_a = self.args.radius_of_acceptance
             
-            reach_radius_of_acceptance = self.env.auto_pilot.if_reach_radius_of_acceptance(n_pos, e_pos, r_o_a)
-            # print(reach_radius_of_acceptance)
-            # if init or self.distance_travelled > self.segment_AB * self.theta:
-                # print(init, 'epis ', self.i)
-                # print(self.env.ship_model.north, self.env.ship_model.east)
-                # print(self.env.ship_model.simulation_results['north position [m]'])
-                # print(self.env.ship_model.simulation_results['east position [m]'])
+            reach_radius_of_acceptance = self.env.obs.auto_pilot.if_reach_radius_of_acceptance(n_pos, e_pos, r_o_a)
+
             if init or reach_radius_of_acceptance:
                 ## Sample new action
                 # First check if the we still allowed to sample an action
                 # according to the allowed sampling frequency
                 if self.sampling_count < self.sampling_frequency:
-                    ## ACTION SAMPLING MODE EXPLANATION
-                    # Mode 0 = Random action sampling directly from action space
-                    # Mode 1 = Policy-based action sampling with noise (For training only)
-                    # Mode 2 = Policy-based mmean-action sampling (For evaluation only)
                     if mode == 0:
                         action = self.env.action_space.sample().item() if isinstance(self.env.action_space.sample(), ndarray) else self.env.action_space.sample()
                         # action = self.env.action_space.sample()
@@ -148,29 +123,28 @@ class SAC(object):
                     elif mode == 2:
                         _, _, action = self.policy.sample(state)
                         action = action.detach().cpu().numpy()[0]
+                        
+                    # Convert action (route scope angle) to route coordinate for simulator input and reset the converter
+                    action = self.convert_action_to_simu_input(action)
                     
                     # Store the sampled action until the next action sampling
                     # The stored action will be used for parameter update
                     # until the new action sampling
                     self.last_action = action
                 
-                    # Reset distance and increment sampling count
-                    self.distance_travelled = 0
+                    # Increment sampling count
                     self.sampling_count += 1
                 
-                    # Set a flag to implement action to the simulator run
-                    # and record time
-                    action_to_simu_input = True
-                    self.time_record += self.env.ship_model.int.dt
-                    
+                    # Set a flag to implement SAC Update
+                    # and reset the timer when we sample a new action
+                    SAC_update = True
+                    self.time_record += self.env.obs.ship_model.int.dt
                     sampling_time_record = self.time_record
                     
                     # Reset time record  when we truly sample new action
                     self.time_record = 0
-                    
-                    self.i += 1
                 
-                    return action, action_to_simu_input, sampling_time_record
+                    return action, SAC_update, sampling_time_record
             
             # Reset if sampling limit is reached
             if self.sampling_count == self.sampling_frequency:
@@ -181,33 +155,26 @@ class SAC(object):
                 
             # Or if terminal state is reached
             if done:
-                self.distance_travelled = 0
-                self.sampling_count = 0  # Reset to start a new cycle
-                self.stop_sampling = False # Set as False because we have reached terminal state 
-                                           # thus we want to start fresh for the nex action sampling
+                self.select_action_reset()
         
-        # INACTION IS ALSO AN ACTION
-        # action = np.array([0, self.last_action[1]])    
         
         ## Return last known action because no sampling occurred
         # Keep recording the time
         action = self.last_action
-        self.time_record += self.env.ship_model.int.dt
+        self.time_record += self.env.obs.ship_model.int.dt
         
         sampling_time_record = self.time_record
         
-        self.i += 1
-        
-        return action, action_to_simu_input, sampling_time_record
+        return action, SAC_update, sampling_time_record
     
     
     def convert_action_to_simu_input(self, 
                                      action):
         # Unpack action
-        # chi, desired_forward_speed = action
         chi = action
+        print(action/np.pi*180)
         
-        # Compute x_s and _y_s
+        # Compute n_s and e_s
         l_s = np.abs(self.segment_AB * np.tan(chi))
         self.x_s = l_s * np.cos(self.omega)
         self.y_s = l_s * np.sin(self.omega)
@@ -218,50 +185,23 @@ class SAC(object):
             self.x_s *= -1
         else:
             self.y_s *= -1
-        
-        # print(self.x_base, self.y_base)
-        # print(self.x_s, self.y_s)
             
         # Compute next route coordinate
-        route_coord_n = self.x_base + self.x_s
-        route_coord_e = self.y_base + self.y_s
-        
+        route_coord_n = self.e_base + self.x_s
+        route_coord_e = self.n_base + self.y_s
         
         # Update new base for the next route coordinate
         next_segment_factor = self.sampling_count + 1
-        self.x_base = (self.segment_AB_north * next_segment_factor) + self.x_s
-        self.y_base = (self.segment_AB_east * next_segment_factor) + self.y_s
+        self.e_base = self.env.obs.auto_pilot.navigate.east[0] + (self.segment_AB_north * next_segment_factor) + self.x_s
+        self.n_base = self.env.obs.auto_pilot.navigate.north[0] + (self.segment_AB_east * next_segment_factor) + self.y_s
         
         # Repack into simulation input
         # simu_input = [route_coord_n, route_coord_e, desired_forward_speed]
-        simu_input = [route_coord_n, route_coord_e]
+        converted_action = [route_coord_n, route_coord_e]
         
-        return simu_input  
+        return converted_action  
     
-    # def convert_action_to_simu_input(self, 
-    #                                  action):
-    #     # Unpack action
-    #     route_shift, desired_forward_speed = action
-        
-    #     # Check sign and magnitude
-    #     route_shift_mg = np.abs(route_shift)
-        
-    #     ## Add segment
-    #     # If route shift negative (shifting to the right)
-    #     if route_shift < 0:
-    #         route_coord_n = (self.segment_AB_north * self.sampling_count) + (route_shift_mg * np.cos(self.AB_beta))
-    #         route_coord_e = (self.segment_AB_east * self.sampling_count) - (route_shift_mg * np.sin(self.AB_beta))
-    #     # If route shift positive (shifting to the left)
-    #     else:
-    #         route_coord_n = (self.segment_AB_north * self.sampling_count) - (route_shift_mg * np.cos(self.AB_beta))
-    #         route_coord_e = (self.segment_AB_east * self.sampling_count) + (route_shift_mg * np.sin(self.AB_beta))
-        
-    #     # Repack into simulation input
-    #     simu_input = [route_coord_n, route_coord_e, desired_forward_speed]
-        
-    #     return simu_input  
-    
-    def convert_action_reset(self):
+    def select_action_reset(self):
         self.distance_travelled = 0
         self.time_record = 0
         self.sampling_count = 0
@@ -270,9 +210,9 @@ class SAC(object):
         self.last_route_point_east = 0
         self.x_s = 0
         self.y_s = 0
-        self.x_base = self.segment_AB_north
-        self.y_base = self.segment_AB_north
-        self.last_desired_forward_speed = self.env.expected_forward_speed          
+        self.e_base = self.segment_AB_east + self.env.obs.auto_pilot.navigate.east[0]
+        self.n_base = self.segment_AB_north + self.env.obs.auto_pilot.navigate.north[0]
+        self.last_desired_forward_speed = self.env.obs.desired_forward_speed          
 
     def update_parameters(self, memory, batch_size, updates):
         # Sample a batch from memory
@@ -390,375 +330,3 @@ class SAC(object):
         print(f"Restored best reward: {best_reward:.2f}, Best episode: {best_episode}, Total steps: {total_steps}")
     
         return best_reward, best_episode, total_steps
-    
-    
-    # def save_checkpoint(self, env_name, suffix="", ckpt_path=None):
-    #     if not os.path.exists('checkpoints/'):
-    #         os.makedirs('checkpoints/')
-    #     if ckpt_path is None:
-    #         ckpt_path = "checkpoints/sac_checkpoint_{}_{}".format(env_name, suffix)
-    #     print('Saving models to {}'.format(ckpt_path))
-    #     torch.save({'policy_state_dict': self.policy.state_dict(),  
-    #                 'critic_state_dict': self.critic.state_dict(),
-    #                 'critic_target_state_dict': self.critic_target.state_dict(),
-    #                 'critic_optimizer_state_dict': self.critic_optim.state_dict(),
-    #                 'policy_optimizer_state_dict': self.policy_optim.state_dict()}, ckpt_path)
-
-    # # Load model parameters
-    # def load_checkpoint(self, ckpt_path, evaluate=False):
-    #     print('Loading models from {}'.format(ckpt_path))
-    #     if ckpt_path is not None:
-    #         checkpoint = torch.load(ckpt_path)
-    #         self.policy.load_state_dict(checkpoint['policy_state_dict'])
-    #         self.critic.load_state_dict(checkpoint['critic_state_dict'])
-    #         self.critic_target.load_state_dict(checkpoint['critic_target_state_dict'])
-    #         self.critic_optim.load_state_dict(checkpoint['critic_optimizer_state_dict'])
-    #         self.policy_optim.load_state_dict(checkpoint['policy_optimizer_state_dict'])
-
-    #         if evaluate:
-    #             self.policy.eval()
-    #             self.critic.eval()
-    #             self.critic_target.eval()
-    #         else:
-    #             self.policy.train()
-    #             self.critic.train()
-    #             self.critic_target.train()
-
-# def sample_action_on_mode(self, state, mode):
-#     if mode == 0:
-#         act = self.env.action_space.sample()
-#         # print(act)
-#     elif mode == 1:
-#         act, _, _ = self.policy.sample(state)
-#         act = act.detach().cpu().numpy()[0]
-#     elif mode == 2:
-#         _, _, act = self.policy.sample(state)
-#         act = act.detach().cpu().numpy()[0]
-#     return act
-    
-# def select_action_lastroute(self, state, done: bool, init: bool, mode: int):
-        
-#         # Compute action based on mode
-#         # Transform the state array to tensor
-#         state = torch.FloatTensor(state).to(self.device).unsqueeze(0)
-
-#         # print(self.env.ship_model.simulation_results['north position [m]'])
-
-#         if not self.stop_sampling:
-
-#             # Compute traveled distance
-#             if not init and len(self.env.ship_model.simulation_results['north position [m]']) > 1:
-#                 dist_trav_north = self.env.ship_model.simulation_results['north position [m]'][-1] - self.env.ship_model.simulation_results['north position [m]'][-2]
-#                 dist_trav_east = self.env.ship_model.simulation_results['east position [m]'][-1] - self.env.ship_model.simulation_results['east position [m]'][-2]
-#                 self.distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
-
-#             # Handle sampling condition
-#             if init or self.distance_travelled > self.segment_AB * self.theta:
-#                 # if init:
-#                 #     print(f"Initial route sampling")
-#                 # else:
-#                 #     print(f"Distance travelled: {self.distance_travelled:.2f}, Threshold: {self.segment_AB * self.theta:.2f}")
-            
-#                 # Sample action based on mode
-#                 if mode == 0:
-#                     act = self.env.action_space.sample()
-#                 elif mode == 1:
-#                     act, _, _ = self.policy.sample(state)
-#                     act = act.detach().cpu().numpy()[0]
-#                 elif mode == 2:
-#                     _, _, act = self.policy.sample(state)
-#                     act = act.detach().cpu().numpy()[0]
-
-#                 # Unpack action
-#                 north_deviation, east_deviation, desired_forward_speed = act
-
-#                 # Compute new route point
-#                 if self.sampling_count < self.sampling_frequency:
-#                     route_point_north = north_deviation + self.last_route_point_north
-#                     route_point_east = east_deviation + self.last_route_point_east
-                    
-#                     i = 0
-                    
-#                     route_is_inside = self.env.obstacles.if_route_inside_obstacles(route_point_north, route_point_east)
-                    
-#                     while route_is_inside:
-                        
-#                         # Sample action based on mode
-#                         if mode == 0:
-#                             act = self.env.action_space.sample()
-#                         elif mode == 1:
-#                             act, _, _ = self.policy.sample(state)
-#                             act = act.detach().cpu().numpy()[0]
-#                         elif mode == 2:
-#                             _, _, act = self.policy.sample(state)
-#                             act = act.detach().cpu().numpy()[0]
-                        
-#                         # Unpack action
-#                         north_deviation, east_deviation, desired_forward_speed = act
-                        
-#                         # Sample new route until the new route point is not inside the obstacles
-#                         route_point_north = north_deviation + self.last_route_point_north
-#                         route_point_east = east_deviation + self.last_route_point_east
-                        
-#                         # Set up counter to limit the the auto-sampling
-#                         i += 1
-                        
-#                         if i == self.max_route_resampling:
-#                             print('Achieved maximum route resampling')
-#                             break
-                        
-#                     action = np.array([route_point_north, route_point_east, desired_forward_speed])
-
-#                     # Store the sampled action until the next sampling
-#                     self.last_route_point_north = route_point_north 
-#                     self.last_route_point_east = route_point_east
-#                     self.last_desired_forward_speed = desired_forward_speed
-                
-#                     # Reset distance and increment sampling count
-#                     self.distance_travelled = 0
-#                     self.sampling_count += 1
-                
-#                     sample_flag = True
-
-#                     # np.set_printoptions(precision=2, suppress=True)
-#                     # print(f"Sampled action with policy: {action:}, Distance reset.")
-                
-#                     return action, sample_flag
-
-#             # print(self.sampling_count)
-            
-#             # Reset if sampling limit or terminal state is reached
-#             if self.sampling_count == self.sampling_frequency:
-#                 self.distance_travelled = 0
-#                 self.sampling_count = 0  # Reset to start a new cycle
-#                 self.stop_sampling = True
-        
-#             if done:
-#                 self.distance_travelled = 0
-#                 self.sampling_count = 0  # Reset to start a new cycle
-#                 self.stop_sampling = False
-            
-
-#         # Return last known action if no sampling occurred
-#         action = np.array([self.last_route_point_north, self.last_route_point_east, self.last_desired_forward_speed])
-#         sample_flag = False
-        
-#         return action, sample_flag
-    
-    # def select_action_lastpos(self, state, done: bool, init: bool, mode: int):
-        
-    #     # Compute action based on mode
-    #     # Transform the state array to tensor
-    #     state = torch.FloatTensor(state).to(self.device).unsqueeze(0)
-
-    #     # print(self.env.ship_model.simulation_results['north position [m]'])
-
-    #     if not self.stop_sampling:
-
-    #         # Compute traveled distance
-    #         if not init and len(self.env.ship_model.simulation_results['north position [m]']) > 1:
-    #             dist_trav_north = self.env.ship_model.simulation_results['north position [m]'][-1] - self.env.ship_model.simulation_results['north position [m]'][-2]
-    #             dist_trav_east = self.env.ship_model.simulation_results['east position [m]'][-1] - self.env.ship_model.simulation_results['east position [m]'][-2]
-    #             self.distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
-
-    #         # Handle sampling condition
-    #         if init or self.distance_travelled > self.segment_AB * self.theta:
-    #             # if init:
-    #             #     print(f"Initial route sampling")
-    #             # else:
-    #             #     print(f"Distance travelled: {self.distance_travelled:.2f}, Threshold: {self.segment_AB * self.theta:.2f}")
-            
-    #             # Sample action based on mode
-    #             if mode == 0:
-    #                 act = self.env.action_space.sample()
-    #             elif mode == 1:
-    #                 act, _, _ = self.policy.sample(state)
-    #                 act = act.detach().cpu().numpy()[0]
-    #             elif mode == 2:
-    #                 _, _, act = self.policy.sample(state)
-    #                 act = act.detach().cpu().numpy()[0]
-
-    #             # Unpack action
-    #             north_deviation, east_deviation, desired_forward_speed = act
-
-    #             # Compute new route point
-    #             if self.sampling_count < self.sampling_frequency:
-    #                 route_point_north = north_deviation + self.env.ship_model.north
-    #                 route_point_east = east_deviation + self.env.ship_model.east
-                    
-    #                 i = 0
-                    
-    #                 route_is_inside = self.env.obstacles.if_route_inside_obstacles(route_point_north, route_point_east)
-                    
-    #                 while route_is_inside:
-                        
-    #                     # Sample action based on mode
-    #                     if mode == 0:
-    #                         act = self.env.action_space.sample()
-    #                     elif mode == 1:
-    #                         act, _, _ = self.policy.sample(state)
-    #                         act = act.detach().cpu().numpy()[0]
-    #                     elif mode == 2:
-    #                         _, _, act = self.policy.sample(state)
-    #                         act = act.detach().cpu().numpy()[0]
-                        
-    #                     # Unpack action
-    #                     north_deviation, east_deviation, desired_forward_speed = act
-                        
-    #                     # Sample new route until the new route point is not inside the obstacles
-    #                     route_point_north = north_deviation + self.env.ship_model.north
-    #                     route_point_east = east_deviation + self.env.ship_model.east
-                        
-    #                     # Set up counter to limit the the auto-sampling
-    #                     i += 1
-                        
-    #                     if i == self.max_route_resampling:
-    #                         print('Achieved maximum route resampling')
-    #                         break
-                        
-    #                 action = np.array([route_point_north, route_point_east, desired_forward_speed])
-
-    #                 # Store the sampled action until the next sampling
-    #                 self.last_route_point_north = route_point_north 
-    #                 self.last_route_point_east = route_point_east
-    #                 self.last_desired_forward_speed = desired_forward_speed
-                
-    #                 # Reset distance and increment sampling count
-    #                 self.distance_travelled = 0
-    #                 self.sampling_count += 1
-                
-    #                 sample_flag = True
-
-    #                 # np.set_printoptions(precision=2, suppress=True)
-    #                 # print(f"Sampled action with policy: {action:}, Distance reset.")
-                
-    #                 return action, sample_flag
-
-    #         # print(self.sampling_count)
-            
-    #         # Reset if sampling limit or terminal state is reached
-    #         if self.sampling_count == self.sampling_frequency:
-    #             self.distance_travelled = 0
-    #             self.sampling_count = 0  # Reset to start a new cycle
-    #             self.stop_sampling = True
-        
-    #         if done:
-    #             self.distance_travelled = 0
-    #             self.sampling_count = 0  # Reset to start a new cycle
-    #             self.stop_sampling = False
-            
-
-    #     # Return last known action if no sampling occurred
-    #     action = np.array([self.last_route_point_north, self.last_route_point_east, self.last_desired_forward_speed])
-    #     sample_flag = False
-        
-    #     return action, sample_flag
-    
-    # def select_action_segment(self, state, done: bool, init: bool, mode: int):
-        
-    #     # Compute action based on mode
-    #     # Transform the state array to tensor
-    #     state = torch.FloatTensor(state).to(self.device).unsqueeze(0)
-
-    #     # print(self.env.ship_model.simulation_results['north position [m]'])
-
-    #     if not self.stop_sampling:
-
-    #         # Compute traveled distance
-    #         if not init and len(self.env.ship_model.simulation_results['north position [m]']) > 1:
-    #             dist_trav_north = self.env.ship_model.simulation_results['north position [m]'][-1] - self.env.ship_model.simulation_results['north position [m]'][-2]
-    #             dist_trav_east = self.env.ship_model.simulation_results['east position [m]'][-1] - self.env.ship_model.simulation_results['east position [m]'][-2]
-    #             self.distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
-
-    #         # Handle sampling condition
-    #         if init or self.distance_travelled > self.segment_AB * self.theta:
-    #             # if init:
-    #             #     print(f"Initial route sampling")
-    #             # else:
-    #             #     print(f"Distance travelled: {self.distance_travelled:.2f}, Threshold: {self.segment_AB * self.theta:.2f}")
-            
-    #             # Sample action based on mode
-    #             if mode == 0:
-    #                 act = self.env.action_space.sample()
-    #             elif mode == 1:
-    #                 act, _, _ = self.policy.sample(state)
-    #                 act = act.detach().cpu().numpy()[0]
-    #             elif mode == 2:
-    #                 _, _, act = self.policy.sample(state)
-    #                 act = act.detach().cpu().numpy()[0]
-
-    #             # Unpack action
-    #             north_deviation, east_deviation, desired_forward_speed = act
-
-    #             # Compute new route point
-    #             if self.sampling_count < self.sampling_frequency:
-    #                 route_point_north = north_deviation + self.segment_AB_north * self.sampling_count
-    #                 route_point_east = east_deviation + self.segment_AB_east * self.sampling_count
-                    
-    #                 i = 0
-                    
-    #                 route_is_inside = self.env.obstacles.if_route_inside_obstacles(route_point_north, route_point_east)
-                    
-    #                 while route_is_inside:
-                        
-    #                     # Sample action based on mode
-    #                     if mode == 0:
-    #                         act = self.env.action_space.sample()
-    #                     elif mode == 1:
-    #                         act, _, _ = self.policy.sample(state)
-    #                         act = act.detach().cpu().numpy()[0]
-    #                     elif mode == 2:
-    #                         _, _, act = self.policy.sample(state)
-    #                         act = act.detach().cpu().numpy()[0]
-                        
-    #                     # Unpack action
-    #                     north_deviation, east_deviation, desired_forward_speed = act
-                        
-    #                     # Sample new route until the new route point is not inside the obstacles
-    #                     route_point_north = north_deviation + self.segment_AB_north * self.sampling_count
-    #                     route_point_east = east_deviation + self.segment_AB_east * self.sampling_count
-                        
-    #                     # Set up counter to limit the the auto-sampling
-    #                     i += 1
-                        
-    #                     if i == self.max_route_resampling:
-    #                         print('Achieved maximum route resampling')
-    #                         break
-                        
-    #                 action = np.array([route_point_north, route_point_east, desired_forward_speed])
-
-    #                 # Store the sampled action until the next sampling
-    #                 self.last_route_point_north = route_point_north 
-    #                 self.last_route_point_east = route_point_east
-    #                 self.last_desired_forward_speed = desired_forward_speed
-                
-    #                 # Reset distance and increment sampling count
-    #                 self.distance_travelled = 0
-    #                 self.sampling_count += 1
-                
-    #                 sample_flag = True
-
-    #                 # np.set_printoptions(precision=2, suppress=True)
-    #                 # print(f"Sampled action with policy: {action:}, Distance reset.")
-                
-    #                 return action, sample_flag
-
-    #         # print(self.sampling_count)
-            
-    #         # Reset if sampling limit or terminal state is reached
-    #         if self.sampling_count == self.sampling_frequency:
-    #             self.distance_travelled = 0
-    #             self.sampling_count = 0  # Reset to start a new cycle
-    #             self.stop_sampling = True
-        
-    #         if done:
-    #             self.distance_travelled = 0
-    #             self.sampling_count = 0  # Reset to start a new cycle
-    #             self.stop_sampling = False
-            
-
-    #     # Return last known action if no sampling occurred
-    #     action = np.array([self.last_route_point_north, self.last_route_point_east, self.last_desired_forward_speed])
-    #     sample_flag = False
-        
-    #     return action, sample_flag

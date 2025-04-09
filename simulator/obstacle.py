@@ -131,7 +131,7 @@ class PolygonObstacle:
     def if_route_inside_obstacles(self, n_route, e_route):
         ''' Check if any route point is inside any polygon '''
         for e, n in zip(e_route, n_route):
-            if self.if_ship_inside_obstacles(n, e):
+            if self.if_pos_inside_obstacles(n, e):
                 return True
         return False
     

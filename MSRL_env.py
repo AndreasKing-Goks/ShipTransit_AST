@@ -72,14 +72,17 @@ class MultiShipRLEnv(Env):
         # Define observation space 
         # [test_n_pos, test_e_pos, test_headings, test_forward speed, 
         #   test_shaft_speed, test_los_e_ct, test_power_load, \
-        #   obs_n_pos, obs_e_pos, obs_headings, obs_forward_speed] (11 states)
+        #   obs_n_pos, obs_e_pos, obs_headings, obs_forward_speed, \
+        #   obs_los_e_ct] (12 states)
         self.observation_space = Box(
-            low = np.array([0, 0, -np.pi, -25, 
+            low = np.array([0, 0, -np.pi, -25,
+                            -3000, 0, 0, 
                             0, 0, -np.pi, -25,
-                            -3000, 0, 0], dtype=np.float32),
+                            0], dtype=np.float32),
             high = np.array([10000, 20000, np.pi, 25, 
-                             3000, 100, 2000,
-                             10000, 20000, np.pi, 25,], dtype=np.float32),
+                             3000, 1000, 2000,
+                             10000, 20000, np.pi, 25,
+                             1000], dtype=np.float32),
         )
         
         # Define action space [route_point_shift, desired_forward_speed] # FOR LATER
@@ -91,16 +94,17 @@ class MultiShipRLEnv(Env):
         
         # Define initial state
         self.initial_state = np.array([self.test.ship_model.north, self.test.ship_model.east, self.test.ship_model.yaw_angle, self.test.ship_model.forward_speed,
+                                       0.0, 0.0, 0.0,
                                        self.obs.ship_model.north, self.obs.ship_model.east, self.obs.ship_model.yaw_angle, self.obs.ship_model.forward_speed,
-                                       0.0, 0.0, 0.0], dtype=np.float32)
+                                       0.0], dtype=np.float32)
         self.state = self.initial_state
         
         # Container for the next state
         # [test_n_pos, test_e_pos, test_headings, test_forward speed, 
         #   test_shaft_speed, test_los_e_ct, test_power_load, \
         #   obs_n_pos, obs_e_pos, obs_headings, obs_forward_speed] (11 states)
-        self.initial_next_state = np.zeros((11,), dtype=np.float32)
-        self.next_state = self.initial_next_state
+        self.initial_next_states = np.zeros(self.state.shape[0], dtype=np.float32)
+        self.next_states = self.initial_next_states
         
         # Store the map class as attribute
         self.map = map 
@@ -117,21 +121,21 @@ class MultiShipRLEnv(Env):
         
         
         # Initialize Reward Function Parameters
-        # self.reward_function_params()
+        self.reward_function_params()
         
 
     def reward_function_params(self):
-        # Reward Function parameters
+        # Reward function parameters for test and obstacle ship
         self.e_tolerance = 1000
-        AB_distance_n = self.auto_pilot.navigate.north[-1] - self.auto_pilot.navigate.north[0]
-        AB_distance_e = self.auto_pilot.navigate.east[-1] - self.auto_pilot.navigate.east[0]
-        self.AB_distance = np.sqrt(AB_distance_n ** 2 + AB_distance_e ** 2)
-        self.AB_alpha = np.arctan2(AB_distance_e, AB_distance_n)
-        self.AB_beta = np.pi/2 - self.AB_alpha 
-        self.prev_route_coordinate = None
         
-        self.total_distance_travelled = 0
-        self.distance_travelled = 0
+        # Reward function parameters for obstacle ship
+        self.AB_distance_n = self.obs.auto_pilot.navigate.north[-1] - self.obs.auto_pilot.navigate.north[0]
+        self.AB_distance_e = self.obs.auto_pilot.navigate.east[-1] - self.obs.auto_pilot.navigate.east[0]
+        self.AB_distance = np.sqrt(self.AB_distance_n ** 2 + self.AB_distance_e ** 2)
+        self.AB_alpha = np.arctan2(self.AB_distance_e, self.AB_distance_n)
+        self.AB_beta = np.pi/2 - self.AB_alpha 
+        
+        # Navigation failure coefficient
         self.theta = self.args.theta
         
     
@@ -204,7 +208,6 @@ class MultiShipRLEnv(Env):
     def step(self, 
              sampled_route, 
              SAC_update,
-             sampling_time_record,
              init):
         ''' The method is used for stepping up the simulator for all the reinforcement
             learning assets
@@ -244,8 +247,9 @@ class MultiShipRLEnv(Env):
             )
         
             throttle = ship.throttle_controller.throttle(
-                measured_speed = ship.desired_forward_speed,
-                measured_shaft_speed = ship.desired_forward_speed,
+                speed_set_point = ship.desired_forward_speed,
+                measured_speed = forward_speed,
+                measured_shaft_speed = forward_speed,
             )
         
             # Update and integrate differential equations for current time step
@@ -268,15 +272,14 @@ class MultiShipRLEnv(Env):
         
             # Compute reward
             pos = [ship.ship_model.north, ship.ship_model.east, ship.ship_model.yaw_angle]
-            heading_error = ship.ship_model.simulation_results['heading error [deg]'][-1]
+            # heading_error = ship.ship_model.simulation_results['heading error [deg]'][-1]
             measured_shaft_rpm = ship.ship_model.simulation_results['propeller shaft speed [rpm]'][-1]
             los_ct_error = ship.ship_model.simulation_results['cross track error [m]'][-1]
             power_load = ship.ship_model.simulation_results['power me [kw]'][-1]
-            available_power_load = ship.ship_model.simulation_results['available power me [kw]'][-1]
+            # available_power_load = ship.ship_model.simulation_results['available power me [kw]'][-1]
             
             # Store the states required for RL method
-            self.get_next_state(self, 
-                                pos, 
+            self.get_next_state(pos, 
                                 forward_speed, 
                                 measured_shaft_rpm, 
                                 los_ct_error, 
@@ -287,27 +290,21 @@ class MultiShipRLEnv(Env):
             if init == False and ship.type_tag == "obs_ship":
                 dist_trav_north = ship.ship_model.simulation_results['north position [m]'][-1] - ship.ship_model.simulation_results['north position [m]'][-2]
                 dist_trav_east = ship.ship_model.simulation_results['east position [m]'][-1] - ship.ship_model.simulation_results['east position [m]'][-2]
-                self.distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
-                self.total_distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
+                self.eps_distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
+                # self.eps_total_distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
         
             # Step up the simulator
             ship.ship_model.int.next_time()
         
         # Set the next state, then reset the next_state container to zero
-        next_state = self.next_state
-        self.next_state = self.initial_next_state
+        next_states = self.next_states
+        self.next_states = self.initial_next_states
         
         ## MORE WORK ON THE REWARD FUNCTION NOW
-        reward, done, status = self.reward_function(pos,
-                                                    route_coordinate,
-                                                    los_ct_error,
-                                                    power_load,
-                                                    available_power_load,
-                                                    heading_error,
-                                                    measured_shaft_rpm,
-                                                    sampling_time_record)
+        action = route_coordinate
+        reward, done, obs_stop, status = self.reward_function(next_states, action)
         
-        return next_state, reward, done, status
+        return next_states, reward, done, obs_stop, status
     
     def get_next_state(self, pos, forward_speed, measured_shaft_rpm, los_ct_error, power_load, type_tag):
         ''' This method is used to get the next RL steps required to compute the reward function and to update the policy.
@@ -316,22 +313,23 @@ class MultiShipRLEnv(Env):
         '''
         
         if type_tag == 'test_ship':
-            self.next_state[0] = self.ensure_scalar(pos[0])
-            self.next_state[1] = self.ensure_scalar(pos[1]) 
-            self.next_state[2] = self.ensure_scalar(pos[2])
-            self.next_state[3] = self.ensure_scalar(forward_speed)
-            self.next_state[4] = self.ensure_scalar(measured_shaft_rpm)
-            self.next_state[5] = self.ensure_scalar(los_ct_error)
-            self.next_state[6] = self.ensure_scalar(power_load)
+            self.next_states[0] = self.ensure_scalar(pos[0])
+            self.next_states[1] = self.ensure_scalar(pos[1]) 
+            self.next_states[2] = self.ensure_scalar(pos[2])
+            self.next_states[3] = self.ensure_scalar(forward_speed)
+            self.next_states[4] = self.ensure_scalar(measured_shaft_rpm)
+            self.next_states[5] = self.ensure_scalar(los_ct_error)
+            self.next_states[6] = self.ensure_scalar(power_load)
         elif type_tag == 'obs_ship':
-            self.next_state[7] = self.ensure_scalar(pos[0]) 
-            self.next_state[8] = self.ensure_scalar(pos[1]) 
-            self.next_state[9] = self.ensure_scalar(pos[2])
-            self.next_state[10] = self.ensure_scalar(forward_speed)
+            self.next_states[7] = self.ensure_scalar(pos[0]) 
+            self.next_states[8] = self.ensure_scalar(pos[1]) 
+            self.next_states[9] = self.ensure_scalar(pos[2])
+            self.next_states[10] = self.ensure_scalar(forward_speed)
+            self.next_states[11] = self.ensure_scalar(los_ct_error)
         
-        next_state = self.next_state
+        next_states = self.next_states
         
-        return next_state
+        return next_states
     
     def seed(self, seed=None):
         """Set the random seed for reproducibility"""
@@ -345,7 +343,7 @@ class MultiShipRLEnv(Env):
 ############################################### FAILURE MODES #####################################################
 ###################################################################################################################
         
-    def is_pos_outside_horizon(self, pos, ship_length, margin=0):
+    def is_pos_outside_horizon(self, pos, ship_length):
         ''' Checks if the ship positions are outside the map horizon. 
             Map horizons are determined by the edge point of the determined route point. 
             Allowed additional margin are default 100 m for North and East boundaries.
@@ -375,9 +373,12 @@ class MultiShipRLEnv(Env):
         
         return is_outside
     
-    def is_pos_inside_obstacles(self, n_pos, e_pos, ship_length):
+    def is_pos_inside_obstacles(self, pos, ship_length):
         ''' Checks if the tagged position is inside any obstacle
         '''
+        # Unpack ship position
+        n_pos, e_pos, _ = pos
+        
         # Get the obstacle margin due to all assets ship length
         # Margin is defined as a square patch enveloping the ships
         margin = ship_length/2
@@ -394,8 +395,45 @@ class MultiShipRLEnv(Env):
         is_inside = False
         
         for hard_point in hard_points:
-            if self.map.if_pos_inside_obstacles(hard_point):
+            if self.map.if_pos_inside_obstacles(hard_point[0], hard_point[1]):
                 is_inside =  True
+      
+        return is_inside
+    
+    def is_route_outside_horizon(self, route):
+        ''' Checks if the ship positions are outside the map horizon. 
+            Map horizons are determined by the edge point of the determined route point. 
+            Allowed additional margin are default 100 m for North and East boundaries.
+            Only works with start to end route points method (Two initial points).
+        '''
+        # Unpack ship position
+        n_route, e_route = route
+        
+        # Get the map boundaries
+        min_north = self.map.min_north
+        min_east = self.map.min_east
+        max_north = self.map.max_north
+        max_east = self.map.max_east
+            
+        # min_bound and max_bound
+        n_route_bound = [min_north , max_north]
+        e_route_bound = [min_east, max_east]
+        
+        # Check if position is outside bound
+        outside_n = n_route < n_route_bound[0] or n_route > n_route_bound[1]
+        outside_e = e_route < e_route_bound[0] or e_route > e_route_bound[1]
+        
+        is_outside = outside_n or outside_e
+        
+        return is_outside
+    
+    def is_route_inside_obstacles(self, route):
+        ''' Checks if the tagged position is inside any obstacle
+        '''
+        is_inside = False
+        
+        if self.map.if_pos_inside_obstacles(route[0], route[1]):
+            is_inside =  True
       
         return is_inside
     
@@ -405,10 +443,16 @@ class MultiShipRLEnv(Env):
         shaft_rpm_max = 2000 # rpm
         return np.abs(measured_shaft_rpm) > shaft_rpm_max
 
-    def is_navigation_failure(self, e_ct):
+    def is_test_ship_navigation_failure(self, e_ct):
         ## Ship deviates off the course beyond tolerance defined by these two conditions
         condition_1 = np.abs(e_ct) > self.e_tolerance
-        condition_2 = self.distance_travelled > self.AB_distance * self.theta
+        
+        return condition_1
+    
+    def is_obs_ship_navigation_failure(self, e_ct):
+        ## Ship deviates off the course beyond tolerance defined by these two conditions
+        condition_1 = np.abs(e_ct) > self.e_tolerance
+        condition_2 = self.eps_distance_travelled > self.AB_distance * self.theta
         
         return condition_1 or condition_2
 
@@ -416,7 +460,6 @@ class MultiShipRLEnv(Env):
                             power_load, 
                             available_power_load):
         ## Diesel engine overloaded
-        # print(power_load)
         return power_load > available_power_load
     
     def is_ship_collision(self, test_pos, obs_pos):
@@ -441,31 +484,31 @@ class MultiShipRLEnv(Env):
         return is_collide
     
     #### EXPERIMENTAL #### NOT USED FOR NOW ####
-    def is_too_slow(self, recorded_time):
-        ''' Expected time = Scaling Factor * Start-to-end point distances / Expected forward speed
+    # def is_too_slow(self, recorded_time):
+    #     ''' Expected time = Scaling Factor * Start-to-end point distances / Expected forward speed
             
-            Expected time is defined as the time needed to travel form start to end
-            point with the expected forward speed.
+    #         Expected time is defined as the time needed to travel form start to end
+    #         point with the expected forward speed.
             
-            If the ship couldn't travelled enough distances for the sampling within the
-            expected time, it is deemed as a termination and give huge negative rewards.
+    #         If the ship couldn't travelled enough distances for the sampling within the
+    #         expected time, it is deemed as a termination and give huge negative rewards.
             
-            The reason is this occurence most likely happened because the sampled speed
-            is too slow 
-        '''
-        scale_factor = 2.5
+    #         The reason is this occurence most likely happened because the sampled speed
+    #         is too slow 
+    #     '''
+    #     scale_factor = 2.5
         
-        time_expected = scale_factor * self.AB_distance / self.expected_forward_speed
+    #     time_expected = scale_factor * self.AB_distance / self.expected_forward_speed
         
-        return recorded_time > time_expected
+    #     return recorded_time > time_expected
     
 ###################################################################################################################
 ############################################## REWARD FUNCTION ####################################################
 ###################################################################################################################
 
     def test_ship_non_terminal_state_reward(self, 
-                                  test_pos,
-                                  test_los_ct_error):
+                                            test_pos,
+                                            test_los_ct_error):
         ''' Reward per simulation time step should be in order 10**0
             As it will be accumulated over time. Negative reward proportional
             to positive reward shall be added for each simulation time step as
@@ -497,11 +540,11 @@ class MultiShipRLEnv(Env):
         # Closer to obstacle is better
         reward_near_col = 1 - self.map.obstacles_distance(n_test, e_test) / self.map.max_north
         
-        return float(reward_base  + reward_e_ct + reward_near_col + reward_to_distance)
+        return reward_base  + reward_e_ct + reward_near_col + reward_to_distance
     
     def obs_ship_non_terminal_state_reward(self, 
-                                  obs_pos,
-                                  obs_los_ct_error):
+                                           obs_pos,
+                                           obs_los_ct_error):
         ''' Reward per simulation time step should be in order 10**0
             As it will be accumulated over time. Negative reward proportional
             to positive reward shall be added for each simulation time step as
@@ -512,8 +555,8 @@ class MultiShipRLEnv(Env):
         ## Unpack test_ship
         n_obs, e_obs, _ = obs_pos
         
-        ## Base stepping reward
-        reward_base = 0.0
+        ## Base stepping reward, we want the obstacle ship to keep sailing
+        reward_base = 1.0
         
         ## Cross-track error reward        
         # Normalized cross_track error by the tolerance
@@ -533,7 +576,7 @@ class MultiShipRLEnv(Env):
         # Closer to obstacle is worse
         reward_near_col = -(1 - self.map.obstacles_distance(n_obs, e_obs) / self.map.max_north)
         
-        return float(reward_base  + reward_e_ct + reward_near_col + reward_to_distance)
+        return reward_base  + reward_e_ct + reward_near_col + reward_to_distance
     
     def shared_non_terminal_state_reward(self,
                                          test_pos,
@@ -552,26 +595,22 @@ class MultiShipRLEnv(Env):
         return reward
     
     def test_ship_terminal_state_reward(self,
-                                        pos,
-                                        route_coordinate,
-                                        los_ct_error,
-                                        power_load,
-                                        available_power_load,
-                                        measured_shaft_rpm):
+                                        test_pos,
+                                        test_los_ct_error,
+                                        test_power_load,
+                                        test_available_power_load,
+                                        test_measured_shaft_rpm):
         ## Initial value
         reward_terminal = 0
         status = " "
         done = False
         
-        n_test, e_test, _ = pos
-        
-        # print(route_coordinate)
-        n_route, e_route = route_coordinate
+        n_test, e_test, _ = test_pos
         
         ## Reward for reaching the end point
         # Get the relative distance between the ship and the end point
-        n_route_end = self.auto_pilot.navigate.north[-1]
-        e_route_end = self.auto_pilot.navigate.east[-1]
+        n_route_end = self.test.auto_pilot.navigate.north[-1]
+        e_route_end = self.test.auto_pilot.navigate.east[-1]
         relative_dist = np.sqrt((n_test - n_route_end)**2 + (e_test - e_route_end)**2)
         
         # Check if the ship arrive at the end point
@@ -579,95 +618,90 @@ class MultiShipRLEnv(Env):
         if relative_dist <= arrival_radius:
             reward_terminal += 1000
             done = True
-            status = "|Test ship reaches endpoint|"
+            status += "|Test ship reaches endpoint|"
             
         ## Reward for ship hitting map horizon
-        if self.is_pos_outside_horizon(n_test, e_test):
+        if self.is_pos_outside_horizon(test_pos, self.test.ship_model.l_ship):
             reward_terminal += 0
             done = True
-            status = "|Test ship hits map horizon|"
+            status += "|Test ship hits map horizon|"
                     
         ## Reward for ship hitting obstacles
         # We want the test ship to hit the obstacle
-        if self.map.if_pos_inside_obstacles(n_test, e_test): # When using polygon obstacle
+        if self.is_pos_inside_obstacles(test_pos, self.test.ship_model.l_ship): # When using polygon obstacle
             reward_terminal += 700
             done = True
-            status = "|Test ship collide with the terrain|"
+            status += "|Test ship collide with the terrain|"
 
         ## Reward for Mechanical Failure 
-        if self.is_mechanical_failure(measured_shaft_rpm):
+        if self.is_mechanical_failure(test_measured_shaft_rpm):
             reward_terminal += 1200
             done = True
-            status = "|Test ship mechanical failure|"
+            status += "|Test ship mechanical failure|"
         
         ## Reward for Navigation Failure    
-        if self.is_navigation_failure(los_ct_error):
+        if self.is_test_ship_navigation_failure(test_los_ct_error):
             reward_terminal += 1000
             done = True
-            status = "|Test ship navigation failure|"
+            status += "|Test ship navigation failure|"
         
         ## Reward for Blackout Failure    
-        if self.is_blackout_failure(power_load, available_power_load):
+        if self.is_blackout_failure(test_power_load, test_available_power_load):
             reward_terminal += 1500
             done = True
-            status = "|Test ship blackout failure|"
+            status += "|Test ship blackout failure|"
         
         if done == False:
-            status = "|Test ship not in terminal state|"
+            status += "|Test ship not in terminal state|"
         
         return reward_terminal, done, status
     
     def obs_ship_terminal_state_reward(self,
-                                        pos,
-                                        route_coordinate,
-                                        los_ct_error,
-                                        power_load,
-                                        available_power_load,
-                                        measured_shaft_rpm):
+                                        obs_pos,
+                                        obs_route_coordinate,
+                                        obs_los_ct_error):
         ## Initial value
         reward_terminal = 0
         status = " "
-        done = False
+        done = False # Flags to terminate the episodes
+        obs_stop = False # Flags to stop the obstacle ship simulator
         
-        n_obs, e_obs, _ = pos
-        
-        # print(route_coordinate)
-        n_route, e_route = route_coordinate
+        n_obs, e_obs, _ = obs_pos
         
         ## Reward for reaching the end point
         # Get the relative distance between the ship and the end point
-        n_route_end = self.auto_pilot.navigate.north[-1]
-        e_route_end = self.auto_pilot.navigate.east[-1]
+        n_route_end = self.obs.auto_pilot.navigate.north[-1]
+        e_route_end = self.obs.auto_pilot.navigate.east[-1]
         relative_dist = np.sqrt((n_obs - n_route_end)**2 + (e_obs - e_route_end)**2)
         
         # Check if the ship arrive at the end point
         arrival_radius = 200 # Arrival radius zone
         if relative_dist <= arrival_radius:
             reward_terminal += 1000
-            done = True
-            status = "|Obsatcle ship reaches endpoint|"
+            obs_stop = True
+            status += "|Obstacle ship reaches endpoint|"
             
         ## Reward for ship hitting map horizon
-        if self.is_pos_outside_horizon(n_obs, e_obs):
+        if self.is_pos_outside_horizon(obs_pos, self.obs.ship_model.l_ship):
             reward_terminal += 0
-            done = True
-            status = "|Test ship hits map horizon|"
+            obs_stop = True
+            status += "|Obstacle ship hits map horizon|"
                     
         ## Reward for ship hitting obstacles
         ## We don't want the obstacle ship to hit the obstacle
-        if self.map.if_pos_inside_obstacles(n_obs, e_obs): # When using polygon obstacle
+        if self.is_pos_inside_obstacles(obs_pos, self.obs.ship_model.l_ship): # When using polygon obstacle
             reward_terminal -= 1000
             done = True
-            status = "|Obs ship collide with the terrain|"
+            status += "|Obstacle ship collide with the terrain|"
             
         ## Reward for route action sampled inside obstacles or outside map horizon
         # Exclusive for obstacle ship
-        if self.is_pos_outside_horizon(n_route, e_route) or\
-            self.map.if_pos_inside_obstacles(n_route, e_route): # When using polygon obstacle
+        if self.is_route_outside_horizon(obs_route_coordinate) or\
+            self.is_route_inside_obstacles(obs_route_coordinate): # When using polygon obstacle
             reward_terminal += -2500
             done = True
-            status = "|Obstacle ship intermediate route point is sampled in terminal state|"
-        
+            status += "|Obstacle ship intermediate route point is sampled in terminal state|"
+            
         # ## Reward for unnecessary slow ship movement
         # if self.is_too_slow(recorded_time):
         #     reward_terminal += -1000
@@ -675,48 +709,100 @@ class MultiShipRLEnv(Env):
         #     status += "|Slow progress failure|"
         
         ## Reward for Navigation Failure    
-        if self.is_navigation_failure(los_ct_error):
+        if self.is_obs_ship_navigation_failure(obs_los_ct_error):
             reward_terminal += 1000
             done = True
-            status = "|Test ship navigation failure|"
-        
-        ## Reward for Blackout Failure    
-        if self.is_blackout_failure(power_load, available_power_load):
-            reward_terminal += 1500
-            done = True
-            status = "|Test ship blackout failure|"
+            status += "|Obstacle ship navigation failure|"
         
         if done == False:
-            status = "|Test ship not in terminal state|"
+            status += "|Obstacle ship not in terminal state|"
+        
+        return reward_terminal, done, obs_stop, status
+    
+    def shared_terminal_state_reward(self,
+                                     test_pos,
+                                     obs_pos):
+        ''' For computing reward function based on the test and obstacle ship distance
+        '''
+        ## Initial value
+        reward_terminal = 0
+        status = " "
+        done = False
+        
+        # Check if the ship collide with each other
+        is_collide = self.is_ship_collision(test_pos, obs_pos)
+        
+        # Compute reward
+        if is_collide:
+            reward_terminal += 2500
+            status += "|Ship collision!|"
+            done = True
         
         return reward_terminal, done, status
     
-    # TO WORK LATER
-    def reward_function(self,
-                        pos,
-                        route_coordinate,
-                        los_ct_error,
-                        power_load,
-                        available_power_load,
-                        heading_error,
-                        measured_shaft_rpm,
-                        recorded_time):
+    def reward_function(self, states, rf_args):
         
-        # Compute non terminal state reward
-        reward_non_terminal = self.non_terminal_state_reward(pos, 
-                                                             los_ct_error, 
-                                                             heading_error)
+        # Unpack states for test ship
+        test_pos = states[0:3]
+        test_forward_speed = states[3]
+        test_measured_shaft_rpm = states[4]
+        test_los_ct_error = states[5]
+        test_power_load = states[6]
         
-        # Compute termial state reward
-        reward_terminal, done, status = self.terminal_state_reward(pos,
-                                                                   route_coordinate,
-                                                                   los_ct_error,
-                                                                   power_load,
-                                                                   available_power_load,
-                                                                   measured_shaft_rpm,
-                                                                   recorded_time)
+        # Unpack states for obstacle ship
+        obs_pos = states[7:10]
+        obs_forward_speed = states[10]
+        obs_los_ct_error = states[11]
         
-        # Compute overal reward
-        reward = reward_non_terminal + reward_terminal
+        # Unpack args
+        obs_route_coordinate = rf_args
+        test_available_power_load = self.test.ship_model.simulation_results['available power me [kw]'][-1]
         
-        return reward, done, status
+        ## FOR TEST SHIP
+        # Non terminal reward for test ship
+        reward_test_ship_non_terminal = self.test_ship_non_terminal_state_reward(test_pos, 
+                                                                                 test_los_ct_error)
+    
+        # Terminal reward for test ship
+        reward_test_ship_terminal, test_ship_done, test_ship_status = self.test_ship_terminal_state_reward(test_pos, 
+                                                                                                           test_los_ct_error, 
+                                                                                                           test_power_load, 
+                                                                                                           test_available_power_load, 
+                                                                                                           test_measured_shaft_rpm)
+        
+        ## FOR OBSTACLE SHIP
+        # Non terminal reward for test ship
+        reward_obs_ship_non_terminal = self.obs_ship_non_terminal_state_reward(obs_pos,
+                                                                               obs_los_ct_error)
+        # Terminal reward for test ship
+        reward_obs_ship_terminal, obs_ship_done, obs_stop, obs_ship_status = self.obs_ship_terminal_state_reward(obs_pos,
+                                                                                                                 obs_route_coordinate,
+                                                                                                                 obs_los_ct_error)
+
+        ## FOR ALL SHIPS
+        # Non terminal reward for obstacle ship
+        reward_shared_non_terminal = self.shared_non_terminal_state_reward(test_pos, 
+                                                                           obs_pos)
+        
+        # Terminal reward for obstacle ship
+        reward_shared_terminal, shared_done, shared_status = self.shared_terminal_state_reward(test_pos, 
+                                                                                               obs_pos)
+        
+        # print("reward_test_ship_non_terminal:", reward_test_ship_non_terminal, type(reward_test_ship_non_terminal))
+        # print("reward_test_ship_terminal:", reward_test_ship_terminal, type(reward_test_ship_terminal))
+        # print("reward_obs_ship_terminal:", reward_obs_ship_terminal, type(reward_obs_ship_terminal))
+        # print("reward_obs_ship_non_terminal:", reward_obs_ship_non_terminal, type(reward_obs_ship_non_terminal))
+
+        # Add prints for any others you use in the sum
+
+        # Compute output
+        reward = reward_test_ship_non_terminal + reward_test_ship_terminal + \
+                 reward_obs_ship_non_terminal + reward_obs_ship_terminal + \
+                 reward_shared_non_terminal + reward_shared_terminal
+                 
+        status = test_ship_status + obs_ship_status + shared_status
+        
+        dones = [test_ship_done, obs_ship_done, shared_done]
+        done = any(dones)
+        
+        return reward, done, obs_stop, status

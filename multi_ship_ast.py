@@ -178,8 +178,8 @@ machinery_config = MachinerySystemConfiguration(
 ## CONFIGURE THE SHIP SIMULATION MODELS
 # Ship in Test
 ship_in_test_simu_setup = SimulationConfiguration(
-    initial_north_position_m=0,
-    initial_east_position_m=0,
+    initial_north_position_m=100,
+    initial_east_position_m=100,
     initial_yaw_angle_rad=45 * np.pi / 180,
     initial_forward_speed_m_per_s=0,
     initial_sideways_speed_m_per_s=0,
@@ -195,8 +195,8 @@ test_ship = ShipModelAST(ship_config=ship_config,
 
 # Obstacle Ship
 ship_as_obstacle_simu_setup = SimulationConfiguration(
-    initial_north_position_m=15000,
-    initial_east_position_m=10000,
+    initial_north_position_m=9900,
+    initial_east_position_m=14900,
     initial_yaw_angle_rad=-90 * np.pi / 180,
     initial_forward_speed_m_per_s=0,
     initial_sideways_speed_m_per_s=0,
@@ -317,9 +317,42 @@ env = MultiShipRLEnv(assets=assets,
                      time_since_last_ship_drawing=time_since_last_ship_drawing,
                      args=args)
 
-env.reset()
-env.init_step()
-print(env.map.min_east)
-print(env.map.min_north)
-print(env.map.max_east)
-print(env.map.max_north)
+# Pseudorandom seeding for Reinforcement Learning algorithm
+random_seed = False
+# random_seed = True
+if random_seed:
+    env.seed(args.seed)
+    env.action_space.seed(args.seed)
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+    
+# Setup reinforcement learnig agent
+agent = SAC(env, args)
+
+# Memory buffer for SAC learnig
+memory = ReplayMemory(args.replay_size, args.seed)
+
+# Log message
+log_ID = 1
+log_dir = f"D:\OneDrive - NTNU\PhD\PhD_Projects\ShipTransit_OptiStress\ShipTransit_AST\logs/MS_run_{log_ID}"
+logging = LogMessage(log_dir, log_ID, args)
+save_record = True
+
+## Training loop
+total_numsteps = 0
+updates = 0
+testing_count = 0
+
+## STORE RESULTS
+# ACTION RECORD
+action_record = defaultdict(list)
+
+# STEPWISE - EPISODICAL LOGGING RECORD
+sampled_action = None
+episode_record = defaultdict(lambda: {"sampled_action": [], "termination": [], "rewards": [], "states": []})
+
+# REWARD STORE
+best_reward = float('-inf')
+best_episode = 0
+best_policy_wegihts = None
+
