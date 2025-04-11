@@ -76,6 +76,7 @@ class SAC(object):
         self.sampling_count = 0
         
         self.last_action = 0
+        self.last_converted_action = 0
         self.last_route_point_north = 0 
         self.last_route_point_east = 0
         self.last_desired_forward_speed = self.env.obs.desired_forward_speed
@@ -92,7 +93,7 @@ class SAC(object):
         self.stop_sampling = False
         
 
-    def select_action(self, state, done: bool, init: bool, mode: int):
+    def select_action(self, state, done: bool, init: bool, mode: str):
         
         # Compute action based on mode
         # Transform the state array to tensor
@@ -114,22 +115,32 @@ class SAC(object):
                 # First check if the we still allowed to sample an action
                 # according to the allowed sampling frequency
                 if self.sampling_count < self.sampling_frequency:
-                    if mode == 0:
+                    # if mode == 0:
+                    #     action = self.env.action_space.sample().item() if isinstance(self.env.action_space.sample(), ndarray) else self.env.action_space.sample()
+                    #     # action = self.env.action_space.sample()
+                    # elif mode == 1:
+                    #     action, _, _ = self.policy.sample(state)
+                    #     action = action.detach().cpu().numpy()[0]
+                    # elif mode == 2:
+                    #     _, _, action = self.policy.sample(state)
+                    #     action = action.detach().cpu().numpy()[0]
+                    if mode == 'random':
                         action = self.env.action_space.sample().item() if isinstance(self.env.action_space.sample(), ndarray) else self.env.action_space.sample()
                         # action = self.env.action_space.sample()
-                    elif mode == 1:
+                    elif mode == 'train':
                         action, _, _ = self.policy.sample(state)
                         action = action.detach().cpu().numpy()[0]
-                    elif mode == 2:
+                    elif mode == 'eval':
                         _, _, action = self.policy.sample(state)
                         action = action.detach().cpu().numpy()[0]
                         
                     # Convert action (route scope angle) to route coordinate for simulator input and reset the converter
-                    action = self.convert_action_to_simu_input(action)
+                    converted_action = self.convert_action_to_simu_input(action)
                     
                     # Store the sampled action until the next action sampling
                     # The stored action will be used for parameter update
                     # until the new action sampling
+                    self.last_converted_action = converted_action
                     self.last_action = action
                 
                     # Increment sampling count
@@ -144,7 +155,7 @@ class SAC(object):
                     # Reset time record  when we truly sample new action
                     self.time_record = 0
                 
-                    return action, SAC_update, sampling_time_record
+                    return converted_action, action, SAC_update, sampling_time_record
             
             # Reset if sampling limit is reached
             if self.sampling_count == self.sampling_frequency:
@@ -160,19 +171,19 @@ class SAC(object):
         
         ## Return last known action because no sampling occurred
         # Keep recording the time
+        converted_action = self.last_converted_action
         action = self.last_action
         self.time_record += self.env.obs.ship_model.int.dt
         
         sampling_time_record = self.time_record
         
-        return action, SAC_update, sampling_time_record
+        return converted_action, action, SAC_update, sampling_time_record
     
     
     def convert_action_to_simu_input(self, 
                                      action):
         # Unpack action
         chi = action
-        print(action/np.pi*180)
         
         # Compute n_s and e_s
         l_s = np.abs(self.segment_AB * np.tan(chi))
@@ -187,11 +198,11 @@ class SAC(object):
             self.y_s *= -1
             
         # Compute next route coordinate
-        route_coord_n = self.e_base + self.x_s
-        route_coord_e = self.n_base + self.y_s
+        route_coord_e = self.e_base + self.x_s
+        route_coord_n = self.n_base + self.y_s
         
         # Update new base for the next route coordinate
-        next_segment_factor = self.sampling_count + 1
+        next_segment_factor = self.sampling_count + 2
         self.e_base = self.env.obs.auto_pilot.navigate.east[0] + (self.segment_AB_north * next_segment_factor) + self.x_s
         self.n_base = self.env.obs.auto_pilot.navigate.north[0] + (self.segment_AB_east * next_segment_factor) + self.y_s
         
@@ -202,6 +213,8 @@ class SAC(object):
         return converted_action  
     
     def select_action_reset(self):
+        self.last_converted_action = 0
+        self.last_action = 0
         self.distance_travelled = 0
         self.time_record = 0
         self.sampling_count = 0

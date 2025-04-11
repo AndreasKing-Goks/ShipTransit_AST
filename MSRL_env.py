@@ -115,6 +115,7 @@ class MultiShipRLEnv(Env):
         # Simulation time and travel distance counter
         self.eps_simu_time = 0
         self.eps_distance_travelled = 0
+        self.sampling_distance_travelled = 0
         
         # Previously sampled route coordinate
         self.prev_route_coordinate = None
@@ -132,6 +133,7 @@ class MultiShipRLEnv(Env):
         self.AB_distance_n = self.obs.auto_pilot.navigate.north[-1] - self.obs.auto_pilot.navigate.north[0]
         self.AB_distance_e = self.obs.auto_pilot.navigate.east[-1] - self.obs.auto_pilot.navigate.east[0]
         self.AB_distance = np.sqrt(self.AB_distance_n ** 2 + self.AB_distance_e ** 2)
+        self.AB_segment_length = self.AB_distance/self.args.sampling_frequency
         self.AB_alpha = np.arctan2(self.AB_distance_e, self.AB_distance_n)
         self.AB_beta = np.pi/2 - self.AB_alpha 
         
@@ -166,6 +168,7 @@ class MultiShipRLEnv(Env):
         # Reset the simulation time and travel distance counter
         self.simu_time = 0
         self.eps_distance_travelled = 0
+        self.sampling_distance_travelled = 0
         
         # Reset the changing states into its initial state
         self.state = self.initial_state
@@ -206,7 +209,7 @@ class MultiShipRLEnv(Env):
         return 
     
     def step(self, 
-             sampled_route, 
+             action, 
              SAC_update,
              init):
         ''' The method is used for stepping up the simulator for all the reinforcement
@@ -214,6 +217,8 @@ class MultiShipRLEnv(Env):
         '''
         # For all assets
         for ship in self.assets:
+            # Check if the obstacle ship has stop simulating
+            
             # Measure ship position and speed
             north_position = ship.ship_model.north
             east_position = ship.ship_model.east
@@ -223,7 +228,7 @@ class MultiShipRLEnv(Env):
             # If the it is time for the SAC update, alter the obstacle ship autopilot
             # Test ship autopilot shall not be altered y the reinforcement learning agent
             if SAC_update and ship.type_tag == 'obs_ship':
-                route_coord_n, route_coord_e = sampled_route
+                route_coord_n, route_coord_e = action
             
                 # Update route_point based on the action
                 route_coordinate = route_coord_n, route_coord_e
@@ -234,6 +239,9 @@ class MultiShipRLEnv(Env):
             
                 # Store the sampled route coordinate to the holder variable
                 self.prev_route_coordinate = route_coordinate
+                
+                # Reset the travel distance counter for sampling
+                self.sampling_distance_travelled = 0
         
             # If it is not the time to use action as simulation input, use saved route coordinate
             else:
@@ -291,7 +299,7 @@ class MultiShipRLEnv(Env):
                 dist_trav_north = ship.ship_model.simulation_results['north position [m]'][-1] - ship.ship_model.simulation_results['north position [m]'][-2]
                 dist_trav_east = ship.ship_model.simulation_results['east position [m]'][-1] - ship.ship_model.simulation_results['east position [m]'][-2]
                 self.eps_distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
-                # self.eps_total_distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
+                self.sampling_distance_travelled += np.sqrt(dist_trav_north**2 + dist_trav_east**2)
         
             # Step up the simulator
             ship.ship_model.int.next_time()
@@ -452,7 +460,12 @@ class MultiShipRLEnv(Env):
     def is_obs_ship_navigation_failure(self, e_ct):
         ## Ship deviates off the course beyond tolerance defined by these two conditions
         condition_1 = np.abs(e_ct) > self.e_tolerance
-        condition_2 = self.eps_distance_travelled > self.AB_distance * self.theta
+        condition_2 = self.sampling_distance_travelled > self.AB_segment_length * self.theta
+        
+        # print('condition 1: ', condition_1)
+        # # print('condition 2: ', condition_2)
+        
+        # print(self.sampling_distance_travelled)
         
         return condition_1 or condition_2
 
@@ -556,7 +569,7 @@ class MultiShipRLEnv(Env):
         n_obs, e_obs, _ = obs_pos
         
         ## Base stepping reward, we want the obstacle ship to keep sailing
-        reward_base = 1.0
+        reward_base = 0.1
         
         ## Cross-track error reward        
         # Normalized cross_track error by the tolerance
@@ -690,7 +703,7 @@ class MultiShipRLEnv(Env):
         ## Reward for ship hitting obstacles
         ## We don't want the obstacle ship to hit the obstacle
         if self.is_pos_inside_obstacles(obs_pos, self.obs.ship_model.l_ship): # When using polygon obstacle
-            reward_terminal -= 1000
+            reward_terminal += -1000
             done = True
             status += "|Obstacle ship collide with the terrain|"
             
@@ -710,7 +723,7 @@ class MultiShipRLEnv(Env):
         
         ## Reward for Navigation Failure    
         if self.is_obs_ship_navigation_failure(obs_los_ct_error):
-            reward_terminal += 1000
+            reward_terminal += -1000
             done = True
             status += "|Obstacle ship navigation failure|"
         
@@ -806,3 +819,79 @@ class MultiShipRLEnv(Env):
         done = any(dones)
         
         return reward, done, obs_stop, status
+    
+    # def reward_function(self, states, rf_args):
+    #     reward_total = 0.0
+    #     status_msgs = []
+    #     dones = []
+    #     obs_stop = False  # Default unless any obstacle ship stops
+
+    #     test_ship_found = False
+    #     obs_index = 0
+
+    #     for ship in self.assets:
+    #         if ship.type_tag == 'test_ship':
+    #             test_ship_found = True
+
+    #             # Unpack test ship state
+    #             test_pos = states[0:3]
+    #             test_forward_speed = states[3]
+    #             test_measured_shaft_rpm = states[4]
+    #             test_los_ct_error = states[5]
+    #             test_power_load = states[6]
+    #             test_available_power_load = ship.ship_model.simulation_results['available power me [kw]'][-1]
+
+    #             # Compute test ship rewards
+    #             reward_test_ship_non_terminal = self.test_ship_non_terminal_state_reward(test_pos, test_los_ct_error)
+    #             reward_test_ship_terminal, test_ship_done, test_ship_status = self.test_ship_terminal_state_reward(
+    #                                                                             test_pos, test_los_ct_error, test_power_load,
+    #                                                                             test_available_power_load, test_measured_shaft_rpm
+    #                                                                         )
+
+    #             # Accumulate
+    #             reward_total += reward_test_ship_non_terminal + reward_test_ship_terminal
+    #             status_msgs.append(test_ship_status)
+    #             dones.append(test_ship_done)
+
+    #         elif ship.type_tag == 'obs_ship':
+    #             # Unpack obstacle ship state (offset by known positions)
+    #             offset = 7 + obs_index * 5  # 3 pos + speed + los_ct_error
+    #             obs_pos = states[offset:offset+3]
+    #             obs_forward_speed = states[offset+3]
+    #             obs_los_ct_error = states[offset+4]
+
+    #             route_coord = rf_args[obs_index] if isinstance(rf_args[0], (list, tuple)) else rf_args  # support both formats
+
+    #             # Compute obstacle ship rewards
+    #             reward_obs_non_terminal, obs_done, obs_stop_flag, obs_status = self.obs_ship_non_terminal_state_reward(
+    #                 obs_pos, obs_los_ct_error
+    #             )
+    #             reward_obs_terminal, obs_done2, obs_stop2, obs_status2 = self.obs_ship_terminal_state_reward(
+    #                 obs_pos, route_coord, obs_los_ct_error
+    #             )
+
+    #             # Accumulate
+    #             reward_total += reward_obs_non_terminal + reward_obs_terminal
+    #             status_msgs.extend([obs_status, obs_status2])
+    #             dones.extend([obs_done, obs_done2])
+    #             obs_stop |= obs_stop_flag or obs_stop2
+
+    #             obs_index += 1
+
+    #     # Compute shared rewards
+    #     if test_ship_found:
+    #         test_pos = states[0:3]
+    #     else:
+    #         test_pos = [0, 0, 0]  # fallback default
+
+    #     # For shared rewards, we take the first obs ship's position if available
+    #     obs_pos = states[7:10] if len(states) >= 10 else [0, 0, 0]
+
+    #     reward_shared_non_terminal = self.shared_non_terminal_state_reward(test_pos, obs_pos)
+    #     reward_shared_terminal, shared_done, shared_status = self.shared_terminal_state_reward(test_pos, obs_pos)
+
+    #     reward_total += reward_shared_non_terminal + reward_shared_terminal
+    #     status_msgs.append(shared_status)
+    #     dones.append(shared_done)
+
+    #     return reward_total, any(dones), obs_stop, ' | '.join([s for s in status_msgs if s])
